@@ -1,21 +1,38 @@
 // src/controllers/booking.controller.ts
-import { Request, Response } from 'express';
-import { Types } from 'mongoose';
-import * as service from '../services';
-import { bookingSchema, updateBookingSchema, expenseSchema, statusSchema, bookingPaymentSchema, driverBookingPaymentSchema, driverBookingPaymentUpdateSchema } from '../validation';
-import { createDriverBookingPayment, listDriverBookingPayments, updateDriverBookingPayment, deleteDriverBookingPayment } from '../services/payment.service';
+import { Request, Response } from "express";
+import { Types } from "mongoose";
+import * as service from "../services";
+import {
+  bookingSchema,
+  updateBookingSchema,
+  expenseSchema,
+  statusSchema,
+  bookingPaymentSchema,
+  driverBookingPaymentSchema,
+  driverBookingPaymentUpdateSchema,
+} from "../validation";
+import {
+  createDriverBookingPayment,
+  listDriverBookingPayments,
+  updateDriverBookingPayment,
+  deleteDriverBookingPayment,
+} from "../services/payment.service";
 
 export const createBooking = async (req: Request, res: Response) => {
   const data = bookingSchema.parse(req.body);
   const bookingData = {
     ...data,
-  customerId: data.customerId ? new Types.ObjectId(data.customerId) : undefined,
+    customerId: data.customerId
+      ? new Types.ObjectId(data.customerId)
+      : undefined,
     companyId: data.companyId ? new Types.ObjectId(data.companyId) : undefined,
     vehicleId: data.vehicleId ? new Types.ObjectId(data.vehicleId) : undefined,
     driverId: data.driverId ? new Types.ObjectId(data.driverId) : undefined,
     startDate: new Date(data.startDate),
     endDate: new Date(data.endDate),
-    status: 'booked' as const,
+    status: "booked" as const,
+    dutySlipSubmitted: false,
+    dutySlipSubmittedToCompany: false,
   };
   const booking = await service.createBooking(bookingData);
   res.status(201).json(booking);
@@ -24,33 +41,44 @@ export const createBooking = async (req: Request, res: Response) => {
 export const getBookings = async (req: Request, res: Response) => {
   const page = parseInt(req.query.page as string) || 1;
   const limit = parseInt(req.query.limit as string) || 10;
-  const filters = { status: req.query.status, source: req.query.source, startDate: req.query.startDate, endDate: req.query.endDate, driverId: req.query.driverId };
+  const filters = {
+    status: req.query.status,
+    source: req.query.source,
+    startDate: req.query.startDate,
+    endDate: req.query.endDate,
+    driverId: req.query.driverId,
+  };
   const result = await service.getBookings(page, limit, filters);
   res.json(result);
 };
 
 export const getBookingById = async (req: Request, res: Response) => {
   const booking = await service.getBookingById(req.params.id);
-  if (!booking) return res.status(404).json({ message: 'Booking not found' });
+  if (!booking) return res.status(404).json({ message: "Booking not found" });
   res.json(booking);
 };
 
 export const updateBooking = async (req: Request, res: Response) => {
   const data = updateBookingSchema.parse(req.body);
   const updateData: any = { ...data };
-  
+
   // Convert string IDs to ObjectIds
-  if (updateData.companyId) updateData.companyId = new Types.ObjectId(updateData.companyId);
-  if (updateData.vehicleId) updateData.vehicleId = new Types.ObjectId(updateData.vehicleId);
-  if (updateData.driverId) updateData.driverId = new Types.ObjectId(updateData.driverId);
-  if (updateData.customerId) updateData.customerId = new Types.ObjectId(updateData.customerId);
-  
+  if (updateData.companyId)
+    updateData.companyId = new Types.ObjectId(updateData.companyId);
+  if (updateData.vehicleId)
+    updateData.vehicleId = new Types.ObjectId(updateData.vehicleId);
+  if (updateData.driverId)
+    updateData.driverId = new Types.ObjectId(updateData.driverId);
+  if (updateData.customerId)
+    updateData.customerId = new Types.ObjectId(updateData.customerId);
+
   // Convert date strings to Date objects
-  if (updateData.startDate) updateData.startDate = new Date(updateData.startDate);
+  if (updateData.startDate)
+    updateData.startDate = new Date(updateData.startDate);
   if (updateData.endDate) updateData.endDate = new Date(updateData.endDate);
-  
+
   const booking = await service.updateBooking(req.params.id, updateData);
-  if (!booking) return res.status(404).json({ message: 'Booking not found' });
+  if (!booking) return res.status(404).json({ message: "Booking not found" });
   res.json(booking);
 };
 
@@ -62,29 +90,37 @@ export const deleteBooking = async (req: Request, res: Response) => {
 export const addExpense = async (req: Request, res: Response) => {
   const data = expenseSchema.parse(req.body);
   const booking = await service.addExpense(req.params.id, data);
-  if (!booking) return res.status(404).json({ message: 'Booking not found' });
+  if (!booking) return res.status(404).json({ message: "Booking not found" });
   res.json(booking);
 };
 
 export const updateStatus = async (req: Request, res: Response) => {
   const { status, changedBy } = statusSchema.parse(req.body);
-  const booking = await service.updateStatus(req.params.id, status, changedBy || 'System');
-  if (!booking) return res.status(404).json({ message: 'Booking not found' });
+  const booking = await service.updateStatus(
+    req.params.id,
+    status,
+    changedBy || "System"
+  );
+  if (!booking) return res.status(404).json({ message: "Booking not found" });
   res.json(booking);
 };
 
 export const uploadDutySlips = async (req: Request, res: Response) => {
-  const files = req.files as Express.Multer.File[] || [];
-  const uploadedBy = req.body.uploadedBy || 'System'; // Get from request body or use default
-  const booking = await service.uploadDutySlips(req.params.id, files, uploadedBy);
-  if (!booking) return res.status(404).json({ message: 'Booking not found' });
+  const files = (req.files as Express.Multer.File[]) || [];
+  const uploadedBy = req.body.uploadedBy || "System"; // Get from request body or use default
+  const booking = await service.uploadDutySlips(
+    req.params.id,
+    files,
+    uploadedBy
+  );
+  if (!booking) return res.status(404).json({ message: "Booking not found" });
   res.json(booking);
 };
 
 export const removeDutySlip = async (req: Request, res: Response) => {
   const { path } = req.body;
   const booking = await service.removeDutySlip(req.params.id, path);
-  if (!booking) return res.status(404).json({ message: 'Booking not found' });
+  if (!booking) return res.status(404).json({ message: "Booking not found" });
   res.json(booking);
 };
 
@@ -92,7 +128,7 @@ export const addPayment = async (req: Request, res: Response) => {
   const data = bookingPaymentSchema.parse(req.body);
   const payment = { ...data, paidOn: new Date(data.paidOn) };
   const booking = await service.addPayment(req.params.id, payment as any);
-  if (!booking) return res.status(404).json({ message: 'Booking not found' });
+  if (!booking) return res.status(404).json({ message: "Booking not found" });
   res.json(booking);
 };
 
@@ -103,7 +139,10 @@ export const getPayments = async (req: Request, res: Response) => {
 
 // Driver specific payments tied to a booking
 export const addDriverPayment = async (req: Request, res: Response) => {
-  const data = driverBookingPaymentSchema.parse({ ...req.body, bookingId: req.params.id });
+  const data = driverBookingPaymentSchema.parse({
+    ...req.body,
+    bookingId: req.params.id,
+  });
   try {
     const payment = await createDriverBookingPayment({
       bookingId: data.bookingId,
@@ -116,7 +155,9 @@ export const addDriverPayment = async (req: Request, res: Response) => {
     });
     res.status(201).json(payment);
   } catch (e: any) {
-    res.status(400).json({ message: e.message || 'Failed to create driver payment' });
+    res
+      .status(400)
+      .json({ message: e.message || "Failed to create driver payment" });
   }
 };
 
@@ -128,40 +169,65 @@ export const listDriverPayments = async (req: Request, res: Response) => {
 export const updateDriverPayment = async (req: Request, res: Response) => {
   const data = driverBookingPaymentUpdateSchema.parse(req.body);
   try {
-    const updated = await updateDriverBookingPayment(req.params.paymentId, data as any);
-    if (!updated) return res.status(404).json({ message: 'Driver payment not found' });
+    const updated = await updateDriverBookingPayment(
+      req.params.paymentId,
+      data as any
+    );
+    if (!updated)
+      return res.status(404).json({ message: "Driver payment not found" });
     res.json(updated);
   } catch (e: any) {
-    res.status(400).json({ message: e.message || 'Failed to update driver payment' });
+    res
+      .status(400)
+      .json({ message: e.message || "Failed to update driver payment" });
   }
 };
 
 export const deleteDriverPayment = async (req: Request, res: Response) => {
   const deleted = await deleteDriverBookingPayment(req.params.paymentId);
-  if (!deleted) return res.status(404).json({ message: 'Driver payment not found' });
+  if (!deleted)
+    return res.status(404).json({ message: "Driver payment not found" });
   res.status(204).send();
 };
 
 export const exportDriverPayments = async (req: Request, res: Response) => {
   // Simple CSV export for now
   const payments = await listDriverBookingPayments(req.params.id);
-  const headers = ['id','bookingId','driverId','mode','amount','description','date','fuelQuantity','fuelRate','computedAmount','settled','settledAt'];
-  const rows = payments.map(p => [
-    (p as any)._id,
-    (p as any).bookingId,
-    (p as any).entityId,
-    (p as any).driverPaymentMode || '',
-    p.amount,
-    (p as any).description || '',
-    p.date.toISOString(),
-    (p as any).fuelQuantity ?? '',
-    (p as any).fuelRate ?? '',
-    (p as any).computedAmount ?? '',
-    (p as any).settled ? 'true' : 'false',
-    (p as any).settledAt ? (p as any).settledAt.toISOString() : ''
-  ].join(','));
-  const csv = [headers.join(','), ...rows].join('\n');
-  res.setHeader('Content-Type', 'text/csv');
-  res.setHeader('Content-Disposition', `attachment; filename="driver-payments-${req.params.id}.csv"`);
+  const headers = [
+    "id",
+    "bookingId",
+    "driverId",
+    "mode",
+    "amount",
+    "description",
+    "date",
+    "fuelQuantity",
+    "fuelRate",
+    "computedAmount",
+    "settled",
+    "settledAt",
+  ];
+  const rows = payments.map((p) =>
+    [
+      (p as any)._id,
+      (p as any).bookingId,
+      (p as any).entityId,
+      (p as any).driverPaymentMode || "",
+      p.amount,
+      (p as any).description || "",
+      p.date.toISOString(),
+      (p as any).fuelQuantity ?? "",
+      (p as any).fuelRate ?? "",
+      (p as any).computedAmount ?? "",
+      (p as any).settled ? "true" : "false",
+      (p as any).settledAt ? (p as any).settledAt.toISOString() : "",
+    ].join(",")
+  );
+  const csv = [headers.join(","), ...rows].join("\n");
+  res.setHeader("Content-Type", "text/csv");
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename="driver-payments-${req.params.id}.csv"`
+  );
   res.send(csv);
 };

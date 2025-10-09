@@ -19,35 +19,35 @@ const models_1 = require("../api/models");
 const seedUsers = () => __awaiter(void 0, void 0, void 0, function* () {
     try {
         // Check if admin already exists
-        const adminExists = yield models_1.User.findOne({ email: 'admin@bolt.com' });
+        const adminExists = yield models_1.User.findOne({ email: 'admin@gmail.com' });
         if (adminExists) {
             console.log('Seed users already exist');
             return;
         }
         const users = [
             {
-                email: 'admin@bolt.com',
+                email: 'admin@gmail.com',
                 name: 'Admin User',
                 phone: '+1234567890',
                 role: 'admin',
                 password: yield bcryptjs_1.default.hash('password', 10),
             },
             {
-                email: 'accountant@bolt.com',
+                email: 'accountant@gmail.com',
                 name: 'John Accountant',
                 phone: '+1234567891',
                 role: 'accountant',
                 password: yield bcryptjs_1.default.hash('password', 10),
             },
             {
-                email: 'dispatcher@bolt.com',
+                email: 'dispatcher@gmail.com',
                 name: 'Jane Dispatcher',
                 phone: '+1234567892',
                 role: 'dispatcher',
                 password: yield bcryptjs_1.default.hash('password', 10),
             },
             {
-                email: 'driver@bolt.com',
+                email: 'driver@gmail.com',
                 name: 'Mike Driver',
                 phone: '+1234567893',
                 role: 'driver',
