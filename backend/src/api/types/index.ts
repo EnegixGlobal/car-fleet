@@ -1,8 +1,13 @@
 // src/types/index.ts
-import { Types } from 'mongoose';
-import { Request } from 'express';
+import { Types } from "mongoose";
+import { Request } from "express";
 
-export type UserRole = 'admin' | 'accountant' | 'dispatcher' | 'driver' | 'customer';
+export type UserRole =
+  | "admin"
+  | "accountant"
+  | "dispatcher"
+  | "driver"
+  | "customer";
 
 export interface IUser {
   _id: Types.ObjectId;
@@ -22,14 +27,14 @@ export interface IDriver {
   aadhaar: string;
   photo?: string; // file path
   photoPublicId?: string;
-  vehicleType: 'owned' | 'rented';
+  vehicleType: "owned" | "rented";
   licenseExpiry: Date;
   policeVerificationExpiry: Date;
   licenseDocument?: string; // file path
   licenseDocumentPublicId?: string;
   policeVerificationDocument?: string; // file path
   policeVerificationDocumentPublicId?: string;
-  paymentMode: 'per-trip' | 'daily' | 'monthly' | 'fuel-basis';
+  paymentMode: "per-trip" | "daily" | "monthly" | "fuel-basis";
   // Salary removed from required create fields; keep optional for backward compatibility / historical data
   salary?: number;
   dateOfJoining: Date; // new required field
@@ -37,7 +42,7 @@ export interface IDriver {
   document?: string; // generic uploaded document path (other than license/police verification)
   documentPublicId?: string;
   advances: IAdvance[];
-  status: 'active' | 'inactive';
+  status: "active" | "inactive";
   createdAt: Date;
 }
 
@@ -47,12 +52,12 @@ export interface IVehicle {
   // Keep legacy string category for backward compatibility; prefer using categoryId referencing VehicleCategory
   category: string; // previously enum
   categoryId?: Types.ObjectId; // new reference
-  owner: 'owned' | 'rented';
+  owner: "owned" | "rented";
   insuranceExpiry: Date;
   fitnessExpiry: Date;
   permitExpiry: Date;
   pollutionExpiry: Date;
-  status: 'active' | 'maintenance' | 'inactive';
+  status: "active" | "maintenance" | "inactive";
   photo?: string; // vehicle image path
   document?: string; // RC/permit document path
   mileageTrips?: number;
@@ -134,14 +139,14 @@ export interface ICompany {
 // ...existing code...
 
 export interface IExpense {
-  type: 'fuel' | 'toll' | 'parking' | 'other';
+  type: "fuel" | "toll" | "parking" | "other";
   amount: number;
   description: string;
   receipt?: string; // file path
 }
 
 export interface IStatusChange {
-  status: IBooking['status'];
+  status: IBooking["status"];
   timestamp: Date;
   changedBy: string;
 }
@@ -156,15 +161,15 @@ export interface IAdvance {
 export interface IPayment {
   _id: Types.ObjectId;
   entityId: Types.ObjectId;
-  entityType: 'customer' | 'driver';
+  entityType: "customer" | "driver";
   amount: number;
-  type: 'received' | 'paid';
+  type: "received" | "paid";
   date: Date;
   description: string;
   relatedAdvanceId?: string;
   // Driver payment specific (when entityType==='driver' and optionally tied to a booking)
   bookingId?: Types.ObjectId; // booking for which driver is paid
-  driverPaymentMode?: 'per-trip' | 'daily' | 'fuel-basis';
+  driverPaymentMode?: "per-trip" | "daily" | "fuel-basis";
   fuelQuantity?: number; // litres when fuel-basis
   fuelRate?: number; // per litre rate snapshot
   computedAmount?: number; // system calculated amount (e.g., fuelQuantity * fuelRate) separate from amount if manual override
@@ -178,8 +183,6 @@ export interface AuthRequest extends Request {
   user?: { id: string; role: UserRole };
 }
 
-
-
 export interface IDutySlip {
   path: string;
   uploadedBy: string;
@@ -192,11 +195,16 @@ export interface IBooking {
   customerId?: Types.ObjectId; // reference to Customer (optional for backward compatibility)
   customerName: string;
   customerPhone: string;
-  bookingSource: 'company' | 'travel-agency' | 'individual';
+  bookingSource: "company" | "travel-agency" | "individual";
   companyId?: Types.ObjectId;
   pickupLocation: string;
   dropLocation: string;
-  journeyType: 'outstation-one-way' | 'outstation' | 'local-outstation' | 'local' | 'transfer';
+  journeyType:
+    | "outstation-one-way"
+    | "outstation"
+    | "local-outstation"
+    | "local"
+    | "transfer";
   cityOfWork?: string;
   startDate: Date;
   endDate: Date;
@@ -206,11 +214,13 @@ export interface IBooking {
   totalAmount: number;
   advanceReceived: number;
   balance: number;
-  status: 'booked' | 'ongoing' | 'completed' | 'yet-to-start' | 'canceled';
+  status: "booked" | "ongoing" | "completed" | "yet-to-start" | "canceled";
   dutySlips?: IDutySlip[];
   expenses: IExpense[];
   payments?: IBookingPayment[];
   billed: boolean;
+  dutySlipSubmitted: boolean;
+  dutySlipSubmittedToCompany: boolean;
   createdAt: Date;
   statusHistory: IStatusChange[];
 }
@@ -253,7 +263,7 @@ export interface IFuelEntry {
   _id: Types.ObjectId;
   vehicleId: Types.ObjectId;
   bookingId: Types.ObjectId; // associated trip / booking
-  addedByType: 'self' | 'driver';
+  addedByType: "self" | "driver";
   fuelFillDate: Date;
   totalTripKm: number; // total km for trip segment
   vehicleFuelAverage: number; // vehicle average (km per litre)

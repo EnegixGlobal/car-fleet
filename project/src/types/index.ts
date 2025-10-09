@@ -1,4 +1,9 @@
-export type UserRole = 'admin' | 'accountant' | 'dispatcher' | 'driver' | 'customer';
+export type UserRole =
+  | "admin"
+  | "accountant"
+  | "dispatcher"
+  | "driver"
+  | "customer";
 
 export interface User {
   id: string;
@@ -17,18 +22,18 @@ export interface Driver {
   licenseNumber: string;
   aadhaar: string;
   photo?: string;
-  vehicleType: 'owned' | 'rented';
+  vehicleType: "owned" | "rented";
   licenseExpiry: string;
   policeVerificationExpiry: string;
   licenseDocument?: string | UploadedFile; // Cloudinary URL or full uploaded file object
   policeVerificationDocument?: string | UploadedFile; // Cloudinary URL or uploaded file object
-  paymentMode: 'per-trip' | 'daily' | 'monthly' | 'fuel-basis';
+  paymentMode: "per-trip" | "daily" | "monthly" | "fuel-basis";
   salary?: number;
   dateOfJoining: string;
   referenceNote?: string;
   document?: string | UploadedFile; // allow simple path string
   advances: Advance[];
-  status: 'active' | 'inactive';
+  status: "active" | "inactive";
   createdAt: string;
 }
 
@@ -38,14 +43,14 @@ export interface Vehicle {
   // Category is now dynamic, managed in DB; keep legacy values but allow any string
   category: string;
   categoryId?: string;
-  owner: 'owned' | 'rented';
+  owner: "owned" | "rented";
   insuranceExpiry: string;
   fitnessExpiry: string;
   permitExpiry: string;
   pollutionExpiry: string;
   photo?: string;
   document?: string;
-  status: 'active' | 'maintenance' | 'inactive';
+  status: "active" | "maintenance" | "inactive";
   mileageTrips?: number;
   mileageKm?: number;
   createdAt: string;
@@ -58,12 +63,47 @@ export interface VehicleCategory {
   createdAt: string;
 }
 
-export interface OilChangeEntry { id?: string; date?: string; price: number; kilometers: number; }
-export interface PartReplacementEntry { id?: string; date?: string; part: string; price: number; }
-export interface TyreEntry { id?: string; date?: string; details: string; price: number; }
-export interface InstallmentEntry { id?: string; date?: string; description: string; amount: number; }
-export interface InsuranceEntry { id?: string; date?: string; provider?: string; policyNumber?: string; cost: number; validFrom?: string; validTo?: string; }
-export interface LegalPaperEntry { id?: string; date?: string; type: string; description?: string; cost: number; expiryDate?: string; }
+export interface OilChangeEntry {
+  id?: string;
+  date?: string;
+  price: number;
+  kilometers: number;
+}
+export interface PartReplacementEntry {
+  id?: string;
+  date?: string;
+  part: string;
+  price: number;
+}
+export interface TyreEntry {
+  id?: string;
+  date?: string;
+  details: string;
+  price: number;
+}
+export interface InstallmentEntry {
+  id?: string;
+  date?: string;
+  description: string;
+  amount: number;
+}
+export interface InsuranceEntry {
+  id?: string;
+  date?: string;
+  provider?: string;
+  policyNumber?: string;
+  cost: number;
+  validFrom?: string;
+  validTo?: string;
+}
+export interface LegalPaperEntry {
+  id?: string;
+  date?: string;
+  type: string;
+  description?: string;
+  cost: number;
+  expiryDate?: string;
+}
 
 export interface VehicleServicingDoc {
   vehicleId: string;
@@ -92,11 +132,16 @@ export interface Booking {
   customerId?: string; // reference to customer entity
   customerName: string;
   customerPhone: string;
-  bookingSource: 'company' | 'travel-agency' | 'individual';
+  bookingSource: "company" | "travel-agency" | "individual";
   companyId?: string;
   pickupLocation: string;
   dropLocation: string;
-  journeyType: 'outstation-one-way' | 'outstation' | 'local-outstation' | 'local' | 'transfer';
+  journeyType:
+    | "outstation-one-way"
+    | "outstation"
+    | "local-outstation"
+    | "local"
+    | "transfer";
   cityOfWork?: string;
   startDate: string;
   endDate: string;
@@ -106,11 +151,13 @@ export interface Booking {
   totalAmount: number;
   advanceReceived: number;
   balance: number;
-  status: 'booked' | 'ongoing' | 'completed' | 'yet-to-start' | 'canceled';
+  status: "booked" | "ongoing" | "completed" | "yet-to-start" | "canceled";
   dutySlips?: UploadedFile[]; // multiple uploads (pdf/images)
   expenses: Expense[];
   payments?: BookingPayment[];
   billed: boolean;
+  dutySlipSubmitted: boolean;
+  dutySlipSubmittedToCompany: boolean;
   createdAt: string;
   statusHistory: StatusChange[];
 }
@@ -127,7 +174,7 @@ export interface Customer {
 
 export interface Expense {
   id: string;
-  type: 'fuel' | 'toll' | 'parking' | 'other';
+  type: "fuel" | "toll" | "parking" | "other";
   amount: number;
   description: string;
   receipt?: string;
@@ -143,7 +190,7 @@ export interface BookingPayment {
 
 export interface StatusChange {
   id: string;
-  status: Booking['status'];
+  status: Booking["status"];
   timestamp: string;
   changedBy: string;
 }
@@ -159,9 +206,9 @@ export interface Advance {
 export interface Payment {
   id: string;
   entityId: string;
-  entityType: 'customer' | 'driver';
+  entityType: "customer" | "driver";
   amount: number;
-  type: 'received' | 'paid';
+  type: "received" | "paid";
   date: string;
   description: string;
   // Optional link if this payment settles a specific driver advance
@@ -174,7 +221,7 @@ export interface DriverPayment {
   id: string;
   bookingId: string;
   driverId: string;
-  mode: 'per-trip' | 'daily' | 'fuel-basis';
+  mode: "per-trip" | "daily" | "fuel-basis";
   amount: number; // final paid amount
   description?: string;
   date: string; // created date
@@ -191,7 +238,7 @@ export interface DriverPayment {
 export interface DriverFinancePayment {
   id: string;
   amount: number;
-  type: 'paid' | 'received';
+  type: "paid" | "received";
   date: string;
   description?: string;
   bookingId?: string;
@@ -202,7 +249,7 @@ export interface DriverFinancePayment {
     startDate?: string;
     endDate?: string;
   };
-  mode?: 'per-trip' | 'daily' | 'fuel-basis';
+  mode?: "per-trip" | "daily" | "fuel-basis";
   fuelQuantity?: number;
   fuelRate?: number;
   computedAmount?: number;

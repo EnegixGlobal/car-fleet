@@ -100,54 +100,59 @@
 //   relatedAdvanceId: z.string().optional(),
 // });
 
-
-
-
-
-
 // src/validation/index.ts
-import { z } from 'zod';
-
+import { z } from "zod";
 
 // src/validation/index.ts (Update date fields)
-const dateSchema = z.string().refine((val) => !isNaN(Date.parse(val)), { message: 'Invalid date' }).transform((val) => new Date(val));
+const dateSchema = z
+  .string()
+  .refine((val) => !isNaN(Date.parse(val)), { message: "Invalid date" })
+  .transform((val) => new Date(val));
 
 export const registerSchema = z.object({
-  email: z.string().email('Invalid email'),
-  password: z.string().min(6, 'Password too short'),
-  name: z.string().min(1, 'Name required'),
-  phone: z.string().min(10, 'Invalid phone'),
-  role: z.enum(['admin', 'accountant', 'dispatcher', 'driver', 'customer']),
+  email: z.string().email("Invalid email"),
+  password: z.string().min(6, "Password too short"),
+  name: z.string().min(1, "Name required"),
+  phone: z.string().min(10, "Invalid phone"),
+  role: z.enum(["admin", "accountant", "dispatcher", "driver", "customer"]),
 });
 
 export const loginSchema = z.object({
-  email: z.string().email('Invalid email'),
-  password: z.string().min(1, 'Password required'),
+  email: z.string().email("Invalid email"),
+  password: z.string().min(1, "Password required"),
 });
 
 export const updateUserSchema = registerSchema.partial();
 
 export const bookingSchema = z.object({
   customerId: z.string().optional(),
-  customerName: z.string().min(1, 'Customer name required'),
-  customerPhone: z.string().min(10, 'Invalid phone'),
-  bookingSource: z.enum(['company', 'travel-agency', 'individual']),
+  customerName: z.string().min(1, "Customer name required"),
+  customerPhone: z.string().min(10, "Invalid phone"),
+  bookingSource: z.enum(["company", "travel-agency", "individual"]),
   companyId: z.string().optional(),
-  pickupLocation: z.string().min(1, 'Pickup required'),
-  dropLocation: z.string().min(1, 'Drop required'),
-  journeyType: z.enum(['outstation-one-way','outstation','local-outstation','local','transfer']),
+  pickupLocation: z.string().min(1, "Pickup required"),
+  dropLocation: z.string().min(1, "Drop required"),
+  journeyType: z.enum([
+    "outstation-one-way",
+    "outstation",
+    "local-outstation",
+    "local",
+    "transfer",
+  ]),
   cityOfWork: z.string().optional(),
-  startDate: z.string().datetime('Invalid date'),
-  endDate: z.string().datetime('Invalid date'),
+  startDate: z.string().datetime("Invalid date"),
+  endDate: z.string().datetime("Invalid date"),
   vehicleId: z.string().optional(),
   driverId: z.string().optional(),
-  tariffRate: z.number().min(0, 'Positive rate'),
-  totalAmount: z.number().min(0, 'Positive amount'),
-  advanceReceived: z.number().min(0, 'Positive advance'),
+  tariffRate: z.number().min(0, "Positive rate"),
+  totalAmount: z.number().min(0, "Positive amount"),
+  advanceReceived: z.number().min(0, "Positive advance"),
 });
 
 export const updateBookingSchema = bookingSchema.partial().extend({
   billed: z.boolean().optional(),
+  dutySlipSubmitted: z.boolean().optional(),
+  dutySlipSubmittedToCompany: z.boolean().optional(),
 });
 
 export const customerSchema = z.object({
@@ -161,7 +166,7 @@ export const customerSchema = z.object({
 export const updateCustomerSchema = customerSchema.partial();
 
 export const expenseSchema = z.object({
-  type: z.enum(['fuel', 'toll', 'parking', 'other']),
+  type: z.enum(["fuel", "toll", "parking", "other"]),
   amount: z.number().min(0),
   description: z.string().min(1),
 });
@@ -174,7 +179,13 @@ export const bookingPaymentSchema = z.object({
 });
 
 export const statusSchema = z.object({
-  status: z.enum(['booked', 'ongoing', 'completed', 'yet-to-start', 'canceled']),
+  status: z.enum([
+    "booked",
+    "ongoing",
+    "completed",
+    "yet-to-start",
+    "canceled",
+  ]),
   changedBy: z.string().min(1),
 });
 
@@ -183,15 +194,15 @@ export const driverSchema = z.object({
   phone: z.string().min(10),
   licenseNumber: z.string().min(1),
   aadhaar: z.string().min(12),
-  vehicleType: z.enum(['owned', 'rented']),
+  vehicleType: z.enum(["owned", "rented"]),
   licenseExpiry: z.string().datetime(),
   policeVerificationExpiry: z.string().datetime(),
-  paymentMode: z.enum(['per-trip', 'daily', 'monthly', 'fuel-basis']),
+  paymentMode: z.enum(["per-trip", "daily", "monthly", "fuel-basis"]),
   // salary optional now
   salary: z.number().min(0).optional(),
   dateOfJoining: z.string().datetime(),
   referenceNote: z.string().optional(),
-  status: z.enum(['active','inactive']).optional(),
+  status: z.enum(["active", "inactive"]).optional(),
 });
 
 export const updateDriverSchema = driverSchema.partial();
@@ -201,22 +212,27 @@ export const advanceSchema = z.object({
   description: z.string().optional(),
 });
 
-export const vehicleSchema = z.object({
-  registrationNumber: z.string().min(1),
-  // Accept either a free-form legacy category string or a managed categoryId (one must be provided)
-  category: z.string().min(1).optional(),
-  categoryId: z.string().optional(),
-  owner: z.enum(['owned', 'rented']),
-  insuranceExpiry: z.string().datetime(),
-  fitnessExpiry: z.string().datetime(),
-  permitExpiry: z.string().datetime(),
-  pollutionExpiry: z.string().datetime(),
-  photo: z.string().optional(),
-  document: z.string().optional(),
-}).refine(d => !!d.category || !!d.categoryId, { message: 'category or categoryId is required', path: ['category'] });
+export const vehicleSchema = z
+  .object({
+    registrationNumber: z.string().min(1),
+    // Accept either a free-form legacy category string or a managed categoryId (one must be provided)
+    category: z.string().min(1).optional(),
+    categoryId: z.string().optional(),
+    owner: z.enum(["owned", "rented"]),
+    insuranceExpiry: z.string().datetime(),
+    fitnessExpiry: z.string().datetime(),
+    permitExpiry: z.string().datetime(),
+    pollutionExpiry: z.string().datetime(),
+    photo: z.string().optional(),
+    document: z.string().optional(),
+  })
+  .refine((d) => !!d.category || !!d.categoryId, {
+    message: "category or categoryId is required",
+    path: ["category"],
+  });
 
 export const updateVehicleSchema = vehicleSchema.partial().extend({
-  status: z.enum(['active', 'maintenance', 'inactive']).optional(),
+  status: z.enum(["active", "maintenance", "inactive"]).optional(),
   mileageTrips: z.number().optional(),
   mileageKm: z.number().optional(),
 });
@@ -301,61 +317,88 @@ export const updateCompanySchema = companySchema.partial().extend({
 
 export const paymentSchema = z.object({
   entityId: z.string().uuid(),
-  entityType: z.enum(['customer', 'driver']),
+  entityType: z.enum(["customer", "driver"]),
   amount: z.number().min(0).positive(),
-  type: z.enum(['received', 'paid']),
+  type: z.enum(["received", "paid"]),
   description: z.string().optional(),
   relatedAdvanceId: z.string().uuid().optional(),
 });
 
 // Driver payment for a specific booking
-export const driverBookingPaymentSchema = z.object({
-  driverId: z.string().min(1),
-  bookingId: z.string().min(1),
-  mode: z.enum(['per-trip','daily','fuel-basis']),
-  amount: z.number().min(0).optional(), // may be auto-computed for fuel-basis
-  fuelQuantity: z.number().min(0).optional(),
-  fuelRate: z.number().min(0).optional(),
-  distanceKm: z.number().min(0).optional(),
-  mileage: z.number().min(0).optional(),
-  description: z.string().optional(),
-}).refine(d => {
-  if (d.mode === 'fuel-basis') {
-    const hasExplicit = d.fuelQuantity !== undefined && d.fuelRate !== undefined;
-    const hasDerived = d.distanceKm !== undefined && d.mileage !== undefined && d.mileage > 0 && d.fuelRate !== undefined;
-    return hasExplicit || hasDerived;
-  }
-  return d.amount !== undefined; // per-trip or daily must provide amount
-}, { message: 'Provide amount (per-trip/daily) OR (fuelQuantity & fuelRate) OR (distanceKm & mileage ( >0 ) & fuelRate) for fuel-basis' });
+export const driverBookingPaymentSchema = z
+  .object({
+    driverId: z.string().min(1),
+    bookingId: z.string().min(1),
+    mode: z.enum(["per-trip", "daily", "fuel-basis"]),
+    amount: z.number().min(0).optional(), // may be auto-computed for fuel-basis
+    fuelQuantity: z.number().min(0).optional(),
+    fuelRate: z.number().min(0).optional(),
+    distanceKm: z.number().min(0).optional(),
+    mileage: z.number().min(0).optional(),
+    description: z.string().optional(),
+  })
+  .refine(
+    (d) => {
+      if (d.mode === "fuel-basis") {
+        const hasExplicit =
+          d.fuelQuantity !== undefined && d.fuelRate !== undefined;
+        const hasDerived =
+          d.distanceKm !== undefined &&
+          d.mileage !== undefined &&
+          d.mileage > 0 &&
+          d.fuelRate !== undefined;
+        return hasExplicit || hasDerived;
+      }
+      return d.amount !== undefined; // per-trip or daily must provide amount
+    },
+    {
+      message:
+        "Provide amount (per-trip/daily) OR (fuelQuantity & fuelRate) OR (distanceKm & mileage ( >0 ) & fuelRate) for fuel-basis",
+    }
+  );
 
-export const driverBookingPaymentUpdateSchema = z.object({
-  mode: z.enum(['per-trip','daily','fuel-basis']).optional(),
-  amount: z.number().min(0).optional(),
-  fuelQuantity: z.number().min(0).optional(),
-  fuelRate: z.number().min(0).optional(),
-  distanceKm: z.number().min(0).optional(),
-  mileage: z.number().min(0).optional(),
-  description: z.string().optional(),
-  settle: z.boolean().optional(), // if true -> mark settled
-}).superRefine((d, ctx) => {
-  if (d.mode === 'fuel-basis') {
-    const hasExplicit = d.fuelQuantity !== undefined && d.fuelRate !== undefined;
-    const hasDerived = d.distanceKm !== undefined && d.mileage !== undefined && d.mileage > 0 && d.fuelRate !== undefined;
-    if (!hasExplicit && !hasDerived) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Provide (fuelQuantity & fuelRate) OR (distanceKm & mileage (>0) & fuelRate) for fuel-basis' });
+export const driverBookingPaymentUpdateSchema = z
+  .object({
+    mode: z.enum(["per-trip", "daily", "fuel-basis"]).optional(),
+    amount: z.number().min(0).optional(),
+    fuelQuantity: z.number().min(0).optional(),
+    fuelRate: z.number().min(0).optional(),
+    distanceKm: z.number().min(0).optional(),
+    mileage: z.number().min(0).optional(),
+    description: z.string().optional(),
+    settle: z.boolean().optional(), // if true -> mark settled
+  })
+  .superRefine((d, ctx) => {
+    if (d.mode === "fuel-basis") {
+      const hasExplicit =
+        d.fuelQuantity !== undefined && d.fuelRate !== undefined;
+      const hasDerived =
+        d.distanceKm !== undefined &&
+        d.mileage !== undefined &&
+        d.mileage > 0 &&
+        d.fuelRate !== undefined;
+      if (!hasExplicit && !hasDerived) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message:
+            "Provide (fuelQuantity & fuelRate) OR (distanceKm & mileage (>0) & fuelRate) for fuel-basis",
+        });
+      }
+    } else if (d.mode === "per-trip" || d.mode === "daily") {
+      if (d.amount === undefined) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "amount required for per-trip/daily",
+        });
+      }
     }
-  } else if (d.mode === 'per-trip' || d.mode === 'daily') {
-    if (d.amount === undefined) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'amount required for per-trip/daily' });
-    }
-  }
-});
+  });
 
 // Fuel entry creation validation
 export const fuelEntrySchema = z.object({
   vehicleId: z.string().min(1),
   bookingId: z.string().min(1),
-  addedByType: z.enum(['self','driver']),
+  addedByType: z.enum(["self", "driver"]),
   fuelFillDate: z.string().datetime(),
   totalTripKm: z.number().min(0),
   vehicleFuelAverage: z.number().min(0),
