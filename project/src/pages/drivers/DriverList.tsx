@@ -120,10 +120,10 @@ export const DriverList: React.FC = () => {
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-gray-900">Drivers</h1>
         <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={()=>navigate('/drivers/management')}>
+          {/* <Button variant="outline" onClick={()=>navigate('/drivers/management')}>
             <Icon name="chart" className="h-4 w-4 mr-2" />
             Driver Management
-          </Button>
+          </Button> */}
           <Button onClick={() => navigate('/drivers/create')}>
             <Icon name="plus" className="h-4 w-4 mr-2" />
             New Driver

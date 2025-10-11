@@ -997,6 +997,7 @@ interface RawFullBooking {
   status: "booked" | "ongoing" | "completed" | "yet-to-start" | "canceled";
   expenses: RawExpense[];
   payments?: RawBookingPayment[];
+  finalPaid?: number;
   billed: boolean;
   dutySlipSubmitted: boolean;
   dutySlipSubmittedToCompany: boolean;
@@ -1042,6 +1043,7 @@ export interface BookingDTO {
     collectedBy?: string;
     paidOn: string;
   }[];
+  finalPaid?: number;
   billed: boolean;
   dutySlipSubmitted: boolean;
   dutySlipSubmittedToCompany: boolean;
@@ -1152,6 +1154,7 @@ export const bookingAPI = {
             ? p.paidOn
             : new Date(p.paidOn).toISOString(),
       })),
+      finalPaid: raw.finalPaid,
       billed: raw.billed,
       dutySlipSubmitted: raw.dutySlipSubmitted,
       dutySlipSubmittedToCompany: raw.dutySlipSubmittedToCompany,

@@ -24,6 +24,7 @@ export const DriverProfile: React.FC = () => {
       try {
         setLoadingDriverPayments(true);
         const list = await financeAPI.getDriverPayments(id);
+        console.log(list);
         setDriverPayments(list);
       } catch (err) {
         console.error('Failed to load driver payments', err);

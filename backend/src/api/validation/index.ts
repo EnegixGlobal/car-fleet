@@ -153,6 +153,7 @@ export const updateBookingSchema = bookingSchema.partial().extend({
   billed: z.boolean().optional(),
   dutySlipSubmitted: z.boolean().optional(),
   dutySlipSubmittedToCompany: z.boolean().optional(),
+  finalPaid: z.number().min(0).optional(),
 });
 
 export const customerSchema = z.object({

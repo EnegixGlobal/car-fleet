@@ -78,6 +78,8 @@ const bookingSchema = new Schema<IBooking>({
   dutySlips: [dutySlipSchema],
   expenses: [expenseSchema],
   payments: [bookingPaymentSchema],
+  // Total amount finally paid out to driver for this booking (computed/stored)
+  finalPaid: { type: Number, default: 0 },
   billed: { type: Boolean, default: false },
   dutySlipSubmitted: { type: Boolean, default: false },
   dutySlipSubmittedToCompany: { type: Boolean, default: false },
