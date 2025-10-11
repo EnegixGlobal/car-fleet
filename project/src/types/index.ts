@@ -155,6 +155,8 @@ export interface Booking {
   dutySlips?: UploadedFile[]; // multiple uploads (pdf/images)
   expenses: Expense[];
   payments?: BookingPayment[];
+  // Total amount finally paid to driver for this booking
+  finalPaid?: number;
   billed: boolean;
   dutySlipSubmitted: boolean;
   dutySlipSubmittedToCompany: boolean;

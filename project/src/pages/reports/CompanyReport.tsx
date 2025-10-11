@@ -7,7 +7,13 @@ import { Select } from "../../components/ui/Select";
 import { DataTable } from "../../components/common/DataTable";
 import { Icon } from "../../components/ui/Icon";
 import { format, startOfMonth, endOfMonth } from "date-fns";
-import type { Driver, Vehicle, Company } from "../../types";
+import type {
+  Driver,
+  Vehicle,
+  Company,
+  DriverFinancePayment,
+} from "../../types";
+import { financeAPI } from "../../services/api";
 
 interface ReportRow {
   id: string;
@@ -58,7 +64,7 @@ export const CompanyReport: React.FC = () => {
     return { from: newFrom, to: newTo };
   };
 
-  const generateRows = (customFrom?: string, customTo?: string) => {
+  const generateRows = async (customFrom?: string, customTo?: string) => {
     const startDate = customFrom || from;
     const endDate = customTo || to;
     const start = new Date(startDate);
@@ -69,6 +75,23 @@ export const CompanyReport: React.FC = () => {
       const matchesCompany = companyId ? b.companyId === companyId : true;
       return inRange && matchesCompany;
     });
+
+    // Fetch driver payments for all drivers involved in filtered bookings
+    const uniqueDriverIds = Array.from(
+      new Set(filtered.map((b) => b.driverId).filter(Boolean) as string[])
+    );
+    const driverIdToPayments = new Map<string, DriverFinancePayment[]>();
+    await Promise.all(
+      uniqueDriverIds.map(async (id) => {
+        try {
+          const list = await financeAPI.getDriverPayments(id);
+          driverIdToPayments.set(id, Array.isArray(list) ? list : []);
+        } catch {
+          driverIdToPayments.set(id, []);
+        }
+      })
+    );
+
     const finalRows: ReportRow[] = filtered.map((b, idx) => {
       const driver: Driver | undefined = drivers.find(
         (d) => d.id === (b.driverId || "")
@@ -81,16 +104,19 @@ export const CompanyReport: React.FC = () => {
       );
       const driverExpenses = b.expenses.reduce((sum, e) => sum + e.amount, 0);
       // We don't have per-booking advances/received to driver; use 0 placeholders
-      const advanceToDriver = 0;
-      const driverReceived = payments
-        .filter(
-          (p) => p.entityType === "driver" && p.entityId === (b.driverId || "")
-        )
-        .reduce((s, p) => s + (p.type === "paid" ? p.amount : 0), 0);
-      const amountPayable = Math.max(
-        0,
-        b.totalAmount - driverExpenses - advanceToDriver
-      );
+      const advanceToDriver = b.advanceReceived || 0;
+      // Sum driver payments for this booking (from finance payments by driver)
+      const financePayments = b.driverId
+        ? driverIdToPayments.get(b.driverId) || []
+        : [];
+      const driverReceived = b.advanceReceived + driverExpenses || 0;
+      const amountPayable = financePayments
+        .filter((p) => p.bookingId === b.id)
+        .reduce((s, p) => s + (p.amount || 0), 0);
+      // const amountPayable = Math.max(
+      //   0,
+      //   amountPay - driverExpenses - advanceToDriver
+      // );
       return {
         id: b.id,
         sNo: idx + 1,
@@ -360,12 +386,12 @@ export const CompanyReport: React.FC = () => {
           </div>
           <div className="mt-4 flex justify-end">
             <Button
-              onClick={() => {
+              onClick={async () => {
                 if (year) {
                   const { from: newFrom, to: newTo } = applyMonthYear();
-                  generateRows(newFrom, newTo);
+                  await generateRows(newFrom, newTo);
                 } else {
-                  generateRows();
+                  await generateRows();
                 }
               }}
             >

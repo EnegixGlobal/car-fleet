@@ -218,6 +218,8 @@ export interface IBooking {
   dutySlips?: IDutySlip[];
   expenses: IExpense[];
   payments?: IBookingPayment[];
+  // Total amount finally paid to driver for this booking
+  finalPaid?: number;
   billed: boolean;
   dutySlipSubmitted: boolean;
   dutySlipSubmittedToCompany: boolean;

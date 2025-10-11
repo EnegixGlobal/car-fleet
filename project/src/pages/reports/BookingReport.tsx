@@ -8,6 +8,11 @@ import { Icon } from '../../components/ui/Icon';
 import { useApp } from '../../context/AppContext';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 
+import type {
+  DriverFinancePayment,
+} from "../../types";
+import { financeAPI } from "../../services/api";
+
 interface ReportRow {
   id: string;
   sNo: number;
@@ -20,8 +25,9 @@ interface ReportRow {
   balance: number;
   driverName: string;
   vehicle: string;
-  status: 'booked'|'ongoing'|'completed'|'yet-to-start'|'canceled';
+  status: "booked" | "ongoing" | "completed" | "yet-to-start" | "canceled";
   createdAt: string;
+  paymentsAmount?: number;
 }
 
 export const BookingReport: React.FC = () => {
@@ -47,10 +53,10 @@ export const BookingReport: React.FC = () => {
     setTo(format(end, 'yyyy-MM-dd'));
   };
 
-  const generateRows = () => {
+  const generateRows = async () => {
     const start = new Date(from);
     const end = new Date(to);
-    const filtered = bookings.filter(b => {
+    const filtered = bookings.filter((b) => {
       const dt = new Date(b.startDate);
       if (dt < start || dt > end) return false;
       if (driverId && b.driverId !== driverId) return false;
@@ -58,10 +64,38 @@ export const BookingReport: React.FC = () => {
       if (status && b.status !== status) return false;
       return true;
     });
+
+    // Fetch driver payments for all drivers involved in filtered bookings
+    const uniqueDriverIds = Array.from(
+      new Set(filtered.map((b) => b.driverId).filter(Boolean) as string[])
+    );
+    const driverIdToPayments = new Map<string, DriverFinancePayment[]>();
+    await Promise.all(
+      uniqueDriverIds.map(async (id) => {
+        try {
+          const list = await financeAPI.getDriverPayments(id);
+          driverIdToPayments.set(id, Array.isArray(list) ? list : []);
+        } catch {
+          driverIdToPayments.set(id, []);
+        }
+      })
+    );
+
     const result: ReportRow[] = filtered.map((b, idx) => {
-      const veh = vehicles.find(v => v.id === b.vehicleId);
-      const drv = drivers.find(d => d.id === b.driverId);
+      const veh = vehicles.find((v) => v.id === b.vehicleId);
+      const drv = drivers.find((d) => d.id === b.driverId);
       const expenses = (b.expenses || []).reduce((s, e) => s + e.amount, 0);
+
+       const financePayments = b.driverId
+         ? driverIdToPayments.get(b.driverId) || []
+         : [];
+       const amountPay = financePayments
+         .filter((p) => p.bookingId === b.id)
+        .reduce((s, p) => s + (p.amount || 0), 0);
+      
+      const amountPayable = amountPay === 0 ? 0 : amountPay - expenses - b.advanceReceived;
+
+
       return {
         id: b.id,
         sNo: idx + 1,
@@ -71,11 +105,12 @@ export const BookingReport: React.FC = () => {
         bookingAmount: b.totalAmount,
         advanceReceived: b.advanceReceived,
         expenses,
-        balance: b.balance,
-        driverName: drv?.name || '-',
-        vehicle: veh?.registrationNumber || '-',
+        balance: amountPayable,
+        driverName: drv?.name || "-",
+        vehicle: veh?.registrationNumber || "-",
         status: b.status,
         createdAt: b.createdAt,
+        paymentsAmount: amountPay,
       };
     });
     setRows(result);
@@ -129,9 +164,17 @@ export const BookingReport: React.FC = () => {
   };
 
   const totals = React.useMemo(() => {
-    return rows.reduce((acc, r) => {
-      acc.amount += r.bookingAmount; acc.advance += r.advanceReceived; acc.expenses += r.expenses; acc.balance += r.balance; return acc;
-    }, { amount: 0, advance: 0, expenses: 0, balance: 0 });
+    return rows.reduce(
+      (acc, r) => {
+        acc.amount += r.bookingAmount;
+        acc.advance += r.advanceReceived;
+        acc.expenses += r.expenses;
+        acc.balance += r.balance;
+        acc.payments += r.paymentsAmount || 0;
+        return acc;
+      },
+      { amount: 0, advance: 0, expenses: 0, balance: 0, payments: 0 }
+    );
   }, [rows]);
 
   return (
@@ -139,10 +182,18 @@ export const BookingReport: React.FC = () => {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-900">Booking Report</h1>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={exportCopy}><Icon name="download" className="h-4 w-4 mr-1"/> Copy</Button>
-          <Button variant="outline" onClick={exportCSV}><Icon name="download" className="h-4 w-4 mr-1"/> CSV</Button>
-          <Button variant="outline" onClick={exportExcel}><Icon name="download" className="h-4 w-4 mr-1"/> Excel</Button>
-          <Button variant="outline" onClick={exportPDF}><Icon name="download" className="h-4 w-4 mr-1"/> PDF</Button>
+          <Button variant="outline" onClick={exportCopy}>
+            <Icon name="download" className="h-4 w-4 mr-1" /> Copy
+          </Button>
+          <Button variant="outline" onClick={exportCSV}>
+            <Icon name="download" className="h-4 w-4 mr-1" /> CSV
+          </Button>
+          <Button variant="outline" onClick={exportExcel}>
+            <Icon name="download" className="h-4 w-4 mr-1" /> Excel
+          </Button>
+          <Button variant="outline" onClick={exportPDF}>
+            <Icon name="download" className="h-4 w-4 mr-1" /> PDF
+          </Button>
         </div>
       </div>
 
@@ -152,18 +203,82 @@ export const BookingReport: React.FC = () => {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-            <Input type="date" label="Report From" value={from} onChange={e=>setFrom(e.target.value)} />
-            <Input type="date" label="Report To" value={to} onChange={e=>setTo(e.target.value)} />
-            <Select label="Drivers" value={driverId} onChange={e=>setDriverId(e.target.value)} options={[{ value: '', label: 'All Drivers' }, ...driversOptions]} />
-            <Select label="Vehicles" value={vehicleId} onChange={e=>setVehicleId(e.target.value)} options={[{ value: '', label: 'All Vehicles' }, ...vehicleOptions]} />
-            <Select label="Status" value={status} onChange={e=>setStatus(e.target.value as ReportRow['status']| '')} options={[{ value: '', label: 'All' }, { value: 'booked', label: 'Booked' }, { value: 'yet-to-start', label: 'Yet to Start' }, { value: 'ongoing', label: 'Ongoing' }, { value: 'completed', label: 'Completed' }, { value: 'canceled', label: 'Canceled' }]} />
+            <Input
+              type="date"
+              label="Report From"
+              value={from}
+              onChange={(e) => setFrom(e.target.value)}
+            />
+            <Input
+              type="date"
+              label="Report To"
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+            />
+            <Select
+              label="Drivers"
+              value={driverId}
+              onChange={(e) => setDriverId(e.target.value)}
+              options={[{ value: "", label: "All Drivers" }, ...driversOptions]}
+            />
+            <Select
+              label="Vehicles"
+              value={vehicleId}
+              onChange={(e) => setVehicleId(e.target.value)}
+              options={[
+                { value: "", label: "All Vehicles" },
+                ...vehicleOptions,
+              ]}
+            />
+            <Select
+              label="Status"
+              value={status}
+              onChange={(e) =>
+                setStatus(e.target.value as ReportRow["status"] | "")
+              }
+              options={[
+                { value: "", label: "All" },
+                { value: "booked", label: "Booked" },
+                { value: "yet-to-start", label: "Yet to Start" },
+                { value: "ongoing", label: "Ongoing" },
+                { value: "completed", label: "Completed" },
+                { value: "canceled", label: "Canceled" },
+              ]}
+            />
             <div className="hidden md:block" />
-            <Select label="Month" value={month} onChange={e=>setMonth(e.target.value)} options={[{value:'',label:'All'}, ...Array.from({length:12}, (_,i)=>({ value: String(i+1), label: format(new Date(2000, i, 1), 'MMMM') }))]} />
-            <Select label="Year" value={year} onChange={e=>setYear(e.target.value)} options={[{value:'',label:'-- Year --'}, ...Array.from({length:6},(_,i)=>{ const y = new Date().getFullYear()-i; return { value: String(y), label: String(y)};})]} />
+            <Select
+              label="Month"
+              value={month}
+              onChange={(e) => setMonth(e.target.value)}
+              options={[
+                { value: "", label: "All" },
+                ...Array.from({ length: 12 }, (_, i) => ({
+                  value: String(i + 1),
+                  label: format(new Date(2000, i, 1), "MMMM"),
+                })),
+              ]}
+            />
+            <Select
+              label="Year"
+              value={year}
+              onChange={(e) => setYear(e.target.value)}
+              options={[
+                { value: "", label: "-- Year --" },
+                ...Array.from({ length: 6 }, (_, i) => {
+                  const y = new Date().getFullYear() - i;
+                  return { value: String(y), label: String(y) };
+                }),
+              ]}
+            />
           </div>
           <div className="mt-4 flex justify-end">
-            <Button onClick={() => { if (year) applyMonthYear(); generateRows(); }}>
-              <Icon name="filter" className="h-4 w-4 mr-1"/> Generate Report
+            <Button
+              onClick={() => {
+                if (year) applyMonthYear();
+                generateRows();
+              }}
+            >
+              <Icon name="filter" className="h-4 w-4 mr-1" /> Generate Report
             </Button>
           </div>
         </CardContent>
@@ -171,30 +286,74 @@ export const BookingReport: React.FC = () => {
 
       <Card>
         <CardContent className="flex items-center justify-between">
-          <div className="text-sm text-gray-700">Total Amount: <span className="font-semibold">₹{totals.amount.toLocaleString()}</span></div>
-          <div className="text-sm text-gray-700">Advance: <span className="font-semibold">₹{totals.advance.toLocaleString()}</span></div>
-          <div className="text-sm text-gray-700">Expenses: <span className="font-semibold">₹{totals.expenses.toLocaleString()}</span></div>
-          <div className="text-sm text-gray-700">Balance: <span className="font-semibold">₹{totals.balance.toLocaleString()}</span></div>
+          <div className="text-sm text-gray-700">
+            Total Amount:{" "}
+            <span className="font-semibold">
+              ₹{totals.payments.toLocaleString()}
+            </span>
+          </div>
+          <div className="text-sm text-gray-700">
+            Advance:{" "}
+            <span className="font-semibold">
+              ₹{totals.advance.toLocaleString()}
+            </span>
+          </div>
+          <div className="text-sm text-gray-700">
+            Expenses:{" "}
+            <span className="font-semibold">
+              ₹{totals.expenses.toLocaleString()}
+            </span>
+          </div>
+          <div className="text-sm text-gray-700">
+            Balance:{" "}
+            <span className="font-semibold">
+              ₹{totals.balance.toLocaleString()}
+            </span>
+          </div>
         </CardContent>
       </Card>
 
       <DataTable<ReportRow>
         data={rows}
         columns={[
-          { key: 'sNo', header: 'S.No' },
-          { key: 'bookingDate', header: 'Booking Date', render: (r) => new Date(r.bookingDate).toLocaleDateString() },
-          { key: 'customerName', header: 'Customer Name' },
-          { key: 'route', header: 'From / To' },
-          { key: 'bookingAmount', header: 'Booking Amount', render: (r) => `₹${r.bookingAmount.toLocaleString()}` },
-          { key: 'advanceReceived', header: 'Advance Received', render: (r) => `₹${r.advanceReceived.toLocaleString()}` },
-          { key: 'expenses', header: 'Driver Expenses', render: (r) => `₹${r.expenses.toLocaleString()}` },
-          { key: 'balance', header: 'Amount Payable', render: (r) => `₹${r.balance.toLocaleString()}` },
-          { key: 'driverName', header: 'Driver Name' },
-          { key: 'vehicle', header: 'Vehicle' },
-          { key: 'status', header: 'Status' },
-          { key: 'createdAt', header: 'Created Date', render: (r) => new Date(r.createdAt).toLocaleString() },
+          { key: "sNo", header: "S.No" },
+          {
+            key: "bookingDate",
+            header: "Booking Date",
+            render: (r) => new Date(r.bookingDate).toLocaleDateString(),
+          },
+          { key: "customerName", header: "Customer Name" },
+          { key: "route", header: "From / To" },
+          {
+            key: "bookingAmount",
+            header: "Booking Amount",
+            render: (r) => `₹${r.bookingAmount.toLocaleString()}`,
+          },
+          {
+            key: "advanceReceived",
+            header: "Advance Received",
+            render: (r) => `₹${r.advanceReceived.toLocaleString()}`,
+          },
+          {
+            key: "expenses",
+            header: "Driver Expenses",
+            render: (r) => `₹${r.expenses.toLocaleString()}`,
+          },
+          {
+            key: "balance",
+            header: "Amount Payable",
+            render: (r) => `₹${r.balance.toLocaleString()}`,
+          },
+          { key: "driverName", header: "Driver Name" },
+          { key: "vehicle", header: "Vehicle" },
+          { key: "status", header: "Status" },
+          {
+            key: "createdAt",
+            header: "Created Date",
+            render: (r) => new Date(r.createdAt).toLocaleString(),
+          },
         ]}
-        defaultSortKey={'bookingDate'}
+        defaultSortKey={"bookingDate"}
         defaultSortDirection="desc"
         searchPlaceholder="Search bookings..."
       />
