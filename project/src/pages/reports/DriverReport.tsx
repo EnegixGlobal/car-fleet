@@ -28,7 +28,7 @@ interface ReportRow {
 }
 
 export const DriverReport: React.FC = () => {
-  const { bookings, drivers, vehicles } = useApp();
+  const { bookings, drivers, vehicles, updateBooking } = useApp();
   console.log("bookings", bookings);
   const ALL_BOOKINGS_ID = "ALL_BOOKINGS";
   const formatMoney = (n: number) =>
@@ -56,6 +56,7 @@ export const DriverReport: React.FC = () => {
   const [generatingReport, setGeneratingReport] = React.useState(false);
   const [selectedBookingId, setSelectedBookingId] = React.useState<string>("");
   const [payAmount, setPayAmount] = React.useState<number>(0);
+  const [processingPayment, setProcessingPayment] = React.useState(false);
 
   const driversOptions = drivers.map((d) => ({ value: d.id, label: d.name }));
 
@@ -90,7 +91,18 @@ export const DriverReport: React.FC = () => {
           totalPaymentAmount === 0
             ? 0
             : totalPaymentAmount - driverExpenses - advanceToDriver;
-        return { booking: b, totalPaymentAmount, amountPayable };
+
+        // If finalPaid exists, show finalPaid - amountPayable, otherwise show amountPayable
+        // Don't show negative values
+        const displayAmountPayable = b.finalPaid
+          ? Math.max(0, b.finalPaid - amountPayable)
+          : Math.max(0, amountPayable);
+
+        return {
+          booking: b,
+          totalPaymentAmount,
+          amountPayable: displayAmountPayable,
+        };
       }),
     [filteredBookings, driverPayments]
   );
@@ -104,42 +116,18 @@ export const DriverReport: React.FC = () => {
     [bookingPayables]
   );
 
- const bookingOptions = React.useMemo(
-   () =>
-     bookingPayables
-       .filter(({ booking }) => !booking.finalPaid || booking.finalPaid === 0) // exclude if finalPaid exists and > 0
-       .map(({ booking, amountPayable }) => ({
-         value: booking.id,
-         label: `${new Date(booking.startDate).toLocaleDateString()} - ${
-           booking.pickupLocation
-         } to ${booking.dropLocation} - ₹${formatMoney(amountPayable)}`,
-       })),
-   [bookingPayables]
- );
-  
-  const totalFinalPaid = React.useMemo(() => {
-    return bookingPayables.reduce(
-      (sum, { booking }) => sum + (booking.finalPaid || 0),
-      0
-    );
-  }, [bookingPayables]);
-
-  const displayedAmountPayable = React.useMemo(() => {
-    if (selectedBookingId === ALL_BOOKINGS_ID) {
-      const diff = totalFinalPaid - payAmount;
-      return Number.isFinite(diff) ? diff.toFixed(2) : "0.00";
-    } else {
-      const booking = bookingPayables.find(
-        (b) => b.booking.id === selectedBookingId
-      )?.booking;
-      if (!booking) return "0.00";
-      const diff = (booking.finalPaid || 0) - payAmount;
-      return Number.isFinite(diff) ? diff.toFixed(2) : "0.00";
-    }
-  }, [selectedBookingId, bookingPayables, payAmount, totalFinalPaid]);
- 
-
-
+  const bookingOptions = React.useMemo(
+    () =>
+      bookingPayables
+        .filter(({ booking }) => !booking.finalPaid || booking.finalPaid === 0) // exclude if finalPaid exists and > 0
+        .map(({ booking, amountPayable }) => ({
+          value: booking.id,
+          label: `${new Date(booking.startDate).toLocaleDateString()} - ${
+            booking.pickupLocation
+          } to ${booking.dropLocation} - ₹${formatMoney(amountPayable)}`,
+        })),
+    [bookingPayables]
+  );
 
   React.useEffect(() => {
     if (!selectedBookingId && bookingPayables.length > 0) {
@@ -251,6 +239,17 @@ export const DriverReport: React.FC = () => {
             ? 0
             : totalPaymentAmount - driverExpenses - advanceToDriver;
 
+        // If finalPaid exists, show finalPaid - amountPayable, otherwise show amountPayable
+        // Don't show negative values
+        const displayAmountPayable = b.finalPaid
+          ? Math.max(0, b.finalPaid - amountPayable)
+          : Math.max(0, amountPayable);
+
+        // If finalPaid exists, add it to driverReceived, otherwise show only driverReceived
+        const displayDriverReceived = b.finalPaid
+          ? (b.finalPaid || 0) + driverReceived
+          : driverReceived;
+
         return {
           id: b.id,
           sNo: idx + 1,
@@ -261,8 +260,8 @@ export const DriverReport: React.FC = () => {
           driverName: driver?.name || "-",
           advanceToDriver,
           driverExpenses,
-          driverReceived,
-          amountPayable,
+          driverReceived: displayDriverReceived,
+          amountPayable: displayAmountPayable,
           vehicle: vehicle?.registrationNumber || "-",
           createdDate: b.createdAt,
         };
@@ -457,6 +456,63 @@ export const DriverReport: React.FC = () => {
       })
       .filter(Boolean) as { vehicle: Vehicle; trips: number }[];
   }, [bookings, vehicles, driverId, from, to]);
+
+  // Handle payment to driver
+  const handlePayToDriver = async () => {
+    if (!selectedBookingId || !driverId || payAmount <= 0) return;
+    
+    try {
+      setProcessingPayment(true);
+      
+      if (selectedBookingId === ALL_BOOKINGS_ID) {
+        // Pay for all bookings
+        for (const { booking } of bookingPayables) {
+          if (booking.finalPaid && booking.finalPaid > 0) continue; // Skip already paid bookings
+          
+          const amountPayable = bookingPayables.find(bp => bp.booking.id === booking.id)?.amountPayable || 0;
+          if (amountPayable > 0) {
+            await financeAPI.addDriverPayment(booking.id, {
+              driverId: driverId,
+              mode: "per-trip",
+              amount: amountPayable,
+              description: `Final payment for booking ${booking.pickupLocation} to ${booking.dropLocation}`,
+            });
+            
+            // Update local booking state
+            updateBooking(booking.id, { finalPaid: (booking.finalPaid || 0) + amountPayable });
+          }
+        }
+      } else {
+        // Pay for specific booking
+        const selectedBooking = bookingPayables.find(bp => bp.booking.id === selectedBookingId);
+        if (selectedBooking && !selectedBooking.booking.finalPaid) {
+          await financeAPI.addDriverPayment(selectedBookingId, {
+            driverId: driverId,
+            mode: "per-trip",
+            amount: payAmount,
+            description: `Final payment for booking ${selectedBooking.booking.pickupLocation} to ${selectedBooking.booking.dropLocation}`,
+          });
+          
+          // Update local booking state
+          updateBooking(selectedBookingId, { finalPaid: (selectedBooking.booking.finalPaid || 0) + payAmount });
+        }
+      }
+      
+      // Refresh data
+      await generateRows();
+      await fetchDriverPayments(driverId);
+      
+      // Reset form
+      setSelectedBookingId("");
+      setPayAmount(0);
+      
+    } catch (error) {
+      console.error("Failed to process payment:", error);
+      // You might want to add a toast notification here
+    } finally {
+      setProcessingPayment(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -699,9 +755,11 @@ export const DriverReport: React.FC = () => {
                 <Button
                   size="sm"
                   className="h-8 pt-2 mt-6"
-                  disabled={!selectedBookingId || payAmount <= 0}
+                  disabled={!selectedBookingId || payAmount <= 0 || processingPayment}
+                  onClick={handlePayToDriver}
                 >
-                  <Icon name="plus" className="h-4 w-4 mr-1" /> Pay
+                  <Icon name="plus" className="h-4 w-4 mr-1" /> 
+                  {processingPayment ? "Processing..." : "Pay"}
                 </Button>
               </div>
             </div>
