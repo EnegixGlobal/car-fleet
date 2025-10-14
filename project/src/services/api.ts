@@ -1454,6 +1454,52 @@ export const financeAPI = {
       };
     });
   },
+  addDriverPayment: async (
+    bookingId: string,
+    payload: {
+      driverId: string;
+      mode: "per-trip" | "daily" | "fuel-basis";
+      amount?: number;
+      fuelQuantity?: number;
+      fuelRate?: number;
+      description?: string;
+      distanceKm?: number;
+      mileage?: number;
+    }
+  ): Promise<DriverPayment> => {
+    const res = await api.post(`/bookings/${bookingId}/driver-payments`, {
+      ...payload,
+    });
+    const raw = res.data as {
+      _id?: string;
+      id?: string;
+      amount: number;
+      type: "paid" | "received";
+      date: string;
+      description?: string;
+      bookingId?: string;
+      driverPaymentMode?: "per-trip" | "daily" | "fuel-basis";
+      fuelQuantity?: number;
+      fuelRate?: number;
+      computedAmount?: number;
+      settled?: boolean;
+      settledAt?: string;
+    };
+    return {
+      id: raw._id || raw.id!,
+      amount: raw.amount,
+      type: raw.type,
+      date: raw.date,
+      description: raw.description,
+      bookingId: raw.bookingId,
+      mode: raw.driverPaymentMode,
+      fuelQuantity: raw.fuelQuantity,
+      fuelRate: raw.fuelRate,
+      computedAmount: raw.computedAmount,
+      settled: raw.settled,
+      settledAt: raw.settledAt,
+    };
+  },
 };
 
 function normalizeBookingDates<T extends Record<string, unknown>>(obj: T): T {

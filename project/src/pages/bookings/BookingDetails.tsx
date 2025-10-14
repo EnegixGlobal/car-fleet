@@ -52,6 +52,7 @@ export const BookingDetails: React.FC = () => {
         updateBooking(id, fresh as unknown as Partial<Booking>);
         // Load driver payments
         const dp = await bookingAPI.listDriverPayments(id);
+        console.log('Driver payments received from backend:', dp);
         setDriverPayments(dp as DriverPayment[]);
       } catch {
         /* ignore */
@@ -624,6 +625,64 @@ export const BookingDetails: React.FC = () => {
               )}
               {driver && driverPayments.length > 0 && (
                 <div className="space-y-3">
+                  {/* Show finalPaid as a special payment entry */}
+                  {/* {(booking.finalPaid ?? 0) > 0 && (
+                    
+                    <div
+                      className="p-3 bg-green-50 border border-green-200 rounded text-sm space-y-1"
+                    >
+                     
+                      {hasRole(["admin", "accountant", "dispatcher"]) && (
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              // Set editing state for finalPaid
+                              setEditingDriverPayment({
+                                id: 'finalPaid',
+                                amount: booking.finalPaid || 0,
+                                mode: 'per-trip',
+                                date: new Date().toISOString(),
+                                type: 'paid',
+                                description: 'Final settlement payment',
+                                bookingId: booking.id,
+                                driverId: booking.driverId || '',
+                                settled: true,
+                                settledAt: new Date().toISOString()
+                              } as DriverPayment);
+                              resetDriverPay({ 
+                                mode: "per-trip",
+                                amount: String(booking.finalPaid || 0),
+                                description: 'Final settlement payment'
+                              });
+                              setShowDriverPaymentModal(true);
+                            }}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={async () => {
+                              if (!confirm("Delete final payment?")) return;
+                              try {
+                                // Update booking to remove finalPaid
+                                updateBooking(booking.id, { finalPaid: 0 });
+                                toast.success("Final payment removed");
+                              } catch {
+                                toast.error("Delete failed");
+                              }
+                            }}
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                     
+                      )}
+                    </div>
+                  )} */}
+                  
                   {driverPayments.map((p) => (
                     <div
                       key={p.id}
@@ -652,8 +711,8 @@ export const BookingDetails: React.FC = () => {
                           )}
                           {p.mode === "fuel-basis" && (
                             <p className="text-xs text-gray-500">
-                              Fuel: {p.fuelQuantity}L @ ₹{p.fuelRate} = ₹
-                              {p.computedAmount}
+                              Fuel: {Math.round((p.fuelQuantity || 0) * 100) / 100}L @ ₹{p.fuelRate} = ₹
+                              {Math.round((p.computedAmount || 0) * 100) / 100}
                             </p>
                           )}
                         </div>
@@ -1134,52 +1193,62 @@ export const BookingDetails: React.FC = () => {
         isOpen={showDriverPaymentModal}
         onClose={() => setShowDriverPaymentModal(false)}
         title={
-          editingDriverPayment ? "Edit Driver Payment" : "Add Driver Payment"
+          editingDriverPayment 
+            ? (editingDriverPayment.id === 'finalPaid' ? "Edit Final Payment" : "Edit Driver Payment")
+            : "Add Driver Payment"
         }
       >
         <form
           onSubmit={handleDriverPaySubmit(async (data) => {
+            console.log('Form submitted with data:', data);
             if (!booking || !driver) return;
             try {
               if (editingDriverPayment) {
-                const upd: {
-                  mode: "per-trip" | "daily" | "fuel-basis";
-                  description?: string;
-                  amount?: number;
-                  fuelQuantity?: number;
-                  fuelRate?: number;
-                  distanceKm?: number;
-                  mileage?: number;
-                } = { mode: data.mode, description: data.description };
-                if (data.mode === "fuel-basis") {
-                  if (
-                    data.distanceKm &&
-                    data.mileage &&
-                    parseFloat(data.mileage) > 0
-                  ) {
-                    upd.distanceKm = parseFloat(data.distanceKm);
-                    upd.mileage = parseFloat(data.mileage);
-                    // Let backend derive fuelQuantity; we don't send explicit unless user manually entered without distance
-                  }
-                  if (!upd.distanceKm && data.fuelQuantity) {
-                    upd.fuelQuantity = parseFloat(data.fuelQuantity || "0");
-                  }
-                  if (data.fuelRate)
-                    upd.fuelRate = parseFloat(data.fuelRate || "0");
+                // Handle finalPaid editing
+                if (editingDriverPayment.id === 'finalPaid') {
+                  const newAmount = parseFloat(data.amount || "0");
+                  updateBooking(booking.id, { finalPaid: newAmount });
+                  toast.success("Final payment updated");
                 } else {
-                  upd.amount = parseFloat(data.amount || "0");
+                  const upd: {
+                    mode: "per-trip" | "daily" | "fuel-basis";
+                    description?: string;
+                    amount?: number;
+                    fuelQuantity?: number;
+                    fuelRate?: number;
+                    distanceKm?: number;
+                    mileage?: number;
+                  } = { mode: data.mode, description: data.description };
+                  if (data.mode === "fuel-basis") {
+                    if (
+                      data.distanceKm &&
+                      data.mileage &&
+                      parseFloat(data.mileage) > 0
+                    ) {
+                      upd.distanceKm = parseFloat(data.distanceKm);
+                      upd.mileage = parseFloat(data.mileage);
+                      // Let backend derive fuelQuantity; we don't send explicit unless user manually entered without distance
+                    }
+                    if (!upd.distanceKm && data.fuelQuantity) {
+                      upd.fuelQuantity = parseFloat(data.fuelQuantity || "0");
+                    }
+                    if (data.fuelRate)
+                      upd.fuelRate = parseFloat(data.fuelRate || "0");
+                  } else {
+                    upd.amount = parseFloat(data.amount || "0");
+                  }
+                  const updated = await bookingAPI.updateDriverPayment(
+                    booking.id,
+                    editingDriverPayment.id,
+                    upd
+                  );
+                  setDriverPayments((cur) =>
+                    cur.map((p) =>
+                      p.id === editingDriverPayment.id ? updated : p
+                    )
+                  );
+                  toast.success("Driver payment updated");
                 }
-                const updated = await bookingAPI.updateDriverPayment(
-                  booking.id,
-                  editingDriverPayment.id,
-                  upd
-                );
-                setDriverPayments((cur) =>
-                  cur.map((p) =>
-                    p.id === editingDriverPayment.id ? updated : p
-                  )
-                );
-                toast.success("Driver payment updated");
               } else {
                 const payload: {
                   driverId: string;
@@ -1210,13 +1279,30 @@ export const BookingDetails: React.FC = () => {
                   }
                   if (data.fuelRate)
                     payload.fuelRate = parseFloat(data.fuelRate || "0");
+                  
+                  // For fuel-basis, we need to ensure fuelQuantity is calculated
+                  if (payload.distanceKm && payload.mileage && payload.mileage > 0) {
+                    payload.fuelQuantity = Math.round((payload.distanceKm / payload.mileage) * 100) / 100;
+                  }
+                  
+                  // Calculate amount for fuel-basis
+                  if (payload.fuelQuantity && payload.fuelRate) {
+                    payload.amount = Math.round((payload.fuelQuantity * payload.fuelRate) * 100) / 100;
+                    console.log('Fuel-basis calculation:', {
+                      fuelQuantity: payload.fuelQuantity,
+                      fuelRate: payload.fuelRate,
+                      calculatedAmount: payload.amount
+                    });
+                  }
                 } else {
                   payload.amount = parseFloat(data.amount || "0");
                 }
+                console.log('Final payload before API call:', payload);
                 const created = await bookingAPI.addDriverPayment(
                   booking.id,
                   payload
                 );
+                console.log('Created driver payment response:', created);
                 setDriverPayments([
                   created as DriverPayment,
                   ...driverPayments,
@@ -1256,14 +1342,18 @@ export const BookingDetails: React.FC = () => {
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <Input
-                  {...registerDriverPay("distanceKm")}
+                  {...registerDriverPay("distanceKm", {
+                    min: { value: 0.1, message: "Distance must be greater than 0" }
+                  })}
                   type="number"
                   step="0.1"
                   label="Distance (km)"
                   placeholder="0"
                 />
                 <Input
-                  {...registerDriverPay("mileage")}
+                  {...registerDriverPay("mileage", {
+                    min: { value: 0.1, message: "Mileage must be greater than 0" }
+                  })}
                   type="number"
                   step="0.1"
                   label="Mileage (km/L)"
@@ -1281,6 +1371,7 @@ export const BookingDetails: React.FC = () => {
                 <Input
                   {...registerDriverPay("fuelRate", {
                     required: "Rate required",
+                    min: { value: 0.01, message: "Rate must be greater than 0" }
                   })}
                   type="number"
                   step="0.01"
@@ -1296,7 +1387,7 @@ export const BookingDetails: React.FC = () => {
                   </label>
                   <div className="px-3 py-2 border rounded bg-gray-50 text-gray-700">
                     {derivedFuelQty !== undefined
-                      ? derivedFuelQty.toFixed(2)
+                      ? Math.round(derivedFuelQty * 100) / 100
                       : watchFuelQty || "0"}
                   </div>
                 </div>
@@ -1305,7 +1396,7 @@ export const BookingDetails: React.FC = () => {
                     Computed Amount
                   </label>
                   <div className="px-3 py-2 border rounded bg-gray-50 text-gray-700">
-                    ₹{computedFuelAmount.toFixed(2)}
+                    ₹{Math.round(computedFuelAmount * 100) / 100}
                   </div>
                 </div>
               </div>
