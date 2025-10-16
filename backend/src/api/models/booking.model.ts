@@ -6,7 +6,7 @@ const expenseSchema = new Schema<IExpense>({
   type: {
     type: String,
     required: true,
-    enum: ["fuel", "toll", "parking", "other"],
+    enum: ["fuel", "toll", "parking", "night", "perday", "rent", "other"],
   },
   amount: { type: Number, required: true },
   description: { type: String, required: true },

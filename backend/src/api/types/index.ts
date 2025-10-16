@@ -139,7 +139,7 @@ export interface ICompany {
 // ...existing code...
 
 export interface IExpense {
-  type: "fuel" | "toll" | "parking" | "other";
+  type: "fuel" | "toll" | "parking" | "night" | "perday" | "rent" | "other";
   amount: number;
   description: string;
   receipt?: string; // file path

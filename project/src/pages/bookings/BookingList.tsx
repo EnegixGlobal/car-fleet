@@ -49,6 +49,13 @@ export const BookingList: React.FC = () => {
     return vehicle?.registrationNumber || 'Unknown Vehicle';
   };
 
+  const processedBookings = filteredBookings.map((b) => ({
+    ...b,
+    driverName: getDriverName(b.driverId),
+    vehicleNumber: getVehicleNumber(b.vehicleId),
+  }));
+  // console.log('Processed Bookings:', processedBookings);
+
   // Friendly labels for journey type
   const journeyLabels: Record<Booking['journeyType'], string> = {
     'outstation-one-way': 'Outstation One Way',
@@ -140,14 +147,20 @@ export const BookingList: React.FC = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-gray-900">Bookings</h1>
-        {hasRole(['admin', 'dispatcher']) && (
+        {hasRole(["admin", "dispatcher"]) && (
           <div className="flex space-x-2">
-            <Button onClick={() => navigate('/bookings/create')}>
+            <Button onClick={() => navigate("/bookings/create")}>
               <Icon name="plus" className="h-4 w-4 mr-2" />
               New Booking
             </Button>
             {bookings.length === 0 && (
-              <Button variant="outline" onClick={() => { localStorage.removeItem('bolt_bookings'); window.location.reload(); }}>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  localStorage.removeItem("bolt_bookings");
+                  window.location.reload();
+                }}
+              >
                 Load Sample
               </Button>
             )}
@@ -158,30 +171,60 @@ export const BookingList: React.FC = () => {
       {/* DataTable now renders filters in collapsible panel */}
 
       <DataTable
-        data={filteredBookings}
+        data={processedBookings}
         columns={columns}
         searchPlaceholder="Search bookings..."
         onRowClick={(booking) => navigate(`/bookings/${booking.id}`)}
-        actions={hasRole(['admin', 'dispatcher', 'driver']) ? actions : undefined}
-  sortableColumns={['customerName','startDate','journeyType','totalAmount','status']}
-        defaultSortKey={'startDate'}
+        actions={
+          hasRole(["admin", "dispatcher", "driver"]) ? actions : undefined
+        }
+        sortableColumns={[
+          "customerName",
+          "startDate",
+          "journeyType",
+          "totalAmount",
+          "status",
+        ]}
+        defaultSortKey={"startDate"}
         defaultSortDirection="desc"
-        filtersArea={(
+        filtersArea={
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div>
-              <label htmlFor="statusFilter" className="block text-xs font-medium text-gray-500 mb-1">Status</label>
-              <select id="statusFilter" aria-label="Status filter" value={statusFilter} onChange={e=>setStatusFilter(e.target.value)} className="w-full border-gray-300 rounded-md text-sm focus:ring-amber-500 focus:border-amber-500">
+              <label
+                htmlFor="statusFilter"
+                className="block text-xs font-medium text-gray-500 mb-1"
+              >
+                Status
+              </label>
+              <select
+                id="statusFilter"
+                aria-label="Status filter"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-full border-gray-300 rounded-md text-sm focus:ring-amber-500 focus:border-amber-500"
+              >
                 <option value="all">All</option>
                 <option value="booked">Booked</option>
                 <option value="ongoing">Ongoing</option>
                 <option value="completed">Completed</option>
-    <option value="yet-to-start">Yet to Start</option>
-    <option value="canceled">Canceled</option>
+                <option value="yet-to-start">Yet to Start</option>
+                <option value="canceled">Canceled</option>
               </select>
             </div>
             <div>
-              <label htmlFor="sourceFilter" className="block text-xs font-medium text-gray-500 mb-1">Source</label>
-              <select id="sourceFilter" aria-label="Source filter" value={sourceFilter} onChange={e=>setSourceFilter(e.target.value)} className="w-full border-gray-300 rounded-md text-sm focus:ring-amber-500 focus:border-amber-500">
+              <label
+                htmlFor="sourceFilter"
+                className="block text-xs font-medium text-gray-500 mb-1"
+              >
+                Source
+              </label>
+              <select
+                id="sourceFilter"
+                aria-label="Source filter"
+                value={sourceFilter}
+                onChange={(e) => setSourceFilter(e.target.value)}
+                className="w-full border-gray-300 rounded-md text-sm focus:ring-amber-500 focus:border-amber-500"
+              >
                 <option value="all">All</option>
                 <option value="company">Company</option>
                 <option value="travel-agency">Travel Agency</option>
@@ -189,18 +232,53 @@ export const BookingList: React.FC = () => {
               </select>
             </div>
             <div>
-              <label htmlFor="startDateFilter" className="block text-xs font-medium text-gray-500 mb-1">Start Date</label>
-              <input id="startDateFilter" aria-label="Start date filter" type="date" value={startDate} onChange={e=>setStartDate(e.target.value)} className="w-full border-gray-300 rounded-md text-sm focus:ring-amber-500 focus:border-amber-500" />
+              <label
+                htmlFor="startDateFilter"
+                className="block text-xs font-medium text-gray-500 mb-1"
+              >
+                Start Date
+              </label>
+              <input
+                id="startDateFilter"
+                aria-label="Start date filter"
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full border-gray-300 rounded-md text-sm focus:ring-amber-500 focus:border-amber-500"
+              />
             </div>
             <div>
-              <label htmlFor="endDateFilter" className="block text-xs font-medium text-gray-500 mb-1">End Date</label>
-              <input id="endDateFilter" aria-label="End date filter" type="date" value={endDate} onChange={e=>setEndDate(e.target.value)} className="w-full border-gray-300 rounded-md text-sm focus:ring-amber-500 focus:border-amber-500" />
+              <label
+                htmlFor="endDateFilter"
+                className="block text-xs font-medium text-gray-500 mb-1"
+              >
+                End Date
+              </label>
+              <input
+                id="endDateFilter"
+                aria-label="End date filter"
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="w-full border-gray-300 rounded-md text-sm focus:ring-amber-500 focus:border-amber-500"
+              />
             </div>
             <div className="flex items-end">
-              <Button variant="outline" className="w-full" onClick={()=>{setStatusFilter('all');setSourceFilter('all');setStartDate('');setEndDate('');}}>Reset</Button>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => {
+                  setStatusFilter("all");
+                  setSourceFilter("all");
+                  setStartDate("");
+                  setEndDate("");
+                }}
+              >
+                Reset
+              </Button>
             </div>
           </div>
-        )}
+        }
       />
     </div>
   );
