@@ -167,7 +167,7 @@ export const customerSchema = z.object({
 export const updateCustomerSchema = customerSchema.partial();
 
 export const expenseSchema = z.object({
-  type: z.enum(["fuel", "toll", "parking", "other"]),
+  type: z.enum(["fuel", "toll", "parking", "night", "perday", "rent", "other"]),
   amount: z.number().min(0),
   description: z.string().min(1),
 });

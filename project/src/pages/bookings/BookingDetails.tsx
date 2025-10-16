@@ -682,7 +682,7 @@ export const BookingDetails: React.FC = () => {
                       )}
                     </div>
                   )} */}
-                  
+
                   {driverPayments.map((p) => (
                     <div
                       key={p.id}
@@ -711,7 +711,9 @@ export const BookingDetails: React.FC = () => {
                           )}
                           {p.mode === "fuel-basis" && (
                             <p className="text-xs text-gray-500">
-                              Fuel: {Math.round((p.fuelQuantity || 0) * 100) / 100}L @ ₹{p.fuelRate} = ₹
+                              Fuel:{" "}
+                              {Math.round((p.fuelQuantity || 0) * 100) / 100}L @
+                              ₹{p.fuelRate} = ₹
                               {Math.round((p.computedAmount || 0) * 100) / 100}
                             </p>
                           )}
@@ -1066,9 +1068,11 @@ export const BookingDetails: React.FC = () => {
             label="Expense Type"
             error={expenseErrors.type?.message as string}
             options={[
-              { value: "fuel", label: "Fuel" },
               { value: "toll", label: "Toll" },
               { value: "parking", label: "Parking" },
+              { value: "night", label: "Night" },
+              { value: "perday", label: "Perday" },
+              { value: "rent", label: "Rent" },
               { value: "other", label: "Other" },
             ]}
           />
@@ -1193,19 +1197,21 @@ export const BookingDetails: React.FC = () => {
         isOpen={showDriverPaymentModal}
         onClose={() => setShowDriverPaymentModal(false)}
         title={
-          editingDriverPayment 
-            ? (editingDriverPayment.id === 'finalPaid' ? "Edit Final Payment" : "Edit Driver Payment")
+          editingDriverPayment
+            ? editingDriverPayment.id === "finalPaid"
+              ? "Edit Final Payment"
+              : "Edit Driver Payment"
             : "Add Driver Payment"
         }
       >
         <form
           onSubmit={handleDriverPaySubmit(async (data) => {
-            console.log('Form submitted with data:', data);
+            console.log("Form submitted with data:", data);
             if (!booking || !driver) return;
             try {
               if (editingDriverPayment) {
                 // Handle finalPaid editing
-                if (editingDriverPayment.id === 'finalPaid') {
+                if (editingDriverPayment.id === "finalPaid") {
                   const newAmount = parseFloat(data.amount || "0");
                   updateBooking(booking.id, { finalPaid: newAmount });
                   toast.success("Final payment updated");
@@ -1279,30 +1285,39 @@ export const BookingDetails: React.FC = () => {
                   }
                   if (data.fuelRate)
                     payload.fuelRate = parseFloat(data.fuelRate || "0");
-                  
+
                   // For fuel-basis, we need to ensure fuelQuantity is calculated
-                  if (payload.distanceKm && payload.mileage && payload.mileage > 0) {
-                    payload.fuelQuantity = Math.round((payload.distanceKm / payload.mileage) * 100) / 100;
+                  if (
+                    payload.distanceKm &&
+                    payload.mileage &&
+                    payload.mileage > 0
+                  ) {
+                    payload.fuelQuantity =
+                      Math.round((payload.distanceKm / payload.mileage) * 100) /
+                      100;
                   }
-                  
+
                   // Calculate amount for fuel-basis
                   if (payload.fuelQuantity && payload.fuelRate) {
-                    payload.amount = Math.round((payload.fuelQuantity * payload.fuelRate) * 100) / 100;
-                    console.log('Fuel-basis calculation:', {
+                    payload.amount =
+                      Math.round(
+                        payload.fuelQuantity * payload.fuelRate * 100
+                      ) / 100;
+                    console.log("Fuel-basis calculation:", {
                       fuelQuantity: payload.fuelQuantity,
                       fuelRate: payload.fuelRate,
-                      calculatedAmount: payload.amount
+                      calculatedAmount: payload.amount,
                     });
                   }
                 } else {
                   payload.amount = parseFloat(data.amount || "0");
                 }
-                console.log('Final payload before API call:', payload);
+                console.log("Final payload before API call:", payload);
                 const created = await bookingAPI.addDriverPayment(
                   booking.id,
                   payload
                 );
-                console.log('Created driver payment response:', created);
+                console.log("Created driver payment response:", created);
                 setDriverPayments([
                   created as DriverPayment,
                   ...driverPayments,
@@ -1343,7 +1358,10 @@ export const BookingDetails: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <Input
                   {...registerDriverPay("distanceKm", {
-                    min: { value: 0.1, message: "Distance must be greater than 0" }
+                    min: {
+                      value: 0.1,
+                      message: "Distance must be greater than 0",
+                    },
                   })}
                   type="number"
                   step="0.1"
@@ -1352,7 +1370,10 @@ export const BookingDetails: React.FC = () => {
                 />
                 <Input
                   {...registerDriverPay("mileage", {
-                    min: { value: 0.1, message: "Mileage must be greater than 0" }
+                    min: {
+                      value: 0.1,
+                      message: "Mileage must be greater than 0",
+                    },
                   })}
                   type="number"
                   step="0.1"
@@ -1371,7 +1392,10 @@ export const BookingDetails: React.FC = () => {
                 <Input
                   {...registerDriverPay("fuelRate", {
                     required: "Rate required",
-                    min: { value: 0.01, message: "Rate must be greater than 0" }
+                    min: {
+                      value: 0.01,
+                      message: "Rate must be greater than 0",
+                    },
                   })}
                   type="number"
                   step="0.01"
