@@ -23,15 +23,18 @@ if (cluster.isMaster) {
 } else {
   const app = express();
 
+  app.set("trust proxy", 1);
+
+
   app.use(helmet());
   // Broaden CORS in development to allow Vite dev server (5173) while keeping configured frontend URL
   app.use(cors({
     origin: (origin, callback) => {
       const allowed = [
         config.frontendUrl,
-        'http://localhost:5173',
-        'http://127.0.0.1:5173',
-        'https://car-fleet-01.vercel.app'
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "https://car-fleet-eta.vercel.app/",
       ];
       if (!origin || allowed.includes(origin)) {
         callback(null, true);

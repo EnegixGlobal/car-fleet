@@ -994,6 +994,7 @@ interface RawFullBooking {
   totalAmount: number;
   advanceReceived: number;
   balance: number;
+  advanceReason?: string;
   status: "booked" | "ongoing" | "completed" | "yet-to-start" | "canceled";
   expenses: RawExpense[];
   payments?: RawBookingPayment[];
@@ -1029,6 +1030,7 @@ export interface BookingDTO {
   totalAmount: number;
   advanceReceived: number;
   balance: number;
+  advanceReason?: string;
   status: "booked" | "ongoing" | "completed" | "yet-to-start" | "canceled";
   expenses: {
     id: string;
@@ -1137,6 +1139,7 @@ export const bookingAPI = {
       totalAmount: raw.totalAmount,
       advanceReceived: raw.advanceReceived,
       balance: raw.balance,
+      advanceReason: raw.advanceReason,
       status: raw.status,
       expenses: (raw.expenses || []).map((e) => ({
         id: e.id || e._id || "",

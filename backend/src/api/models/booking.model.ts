@@ -69,6 +69,7 @@ const bookingSchema = new Schema<IBooking>({
   totalAmount: { type: Number, required: true },
   advanceReceived: { type: Number, required: true },
   balance: { type: Number, required: true },
+  advanceReason: { type: String },
   status: {
     type: String,
     required: true,
