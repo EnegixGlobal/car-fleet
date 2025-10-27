@@ -30,6 +30,7 @@ const bookingSchema = z.object({
   tariffRate: z.number().min(0),
   totalAmount: z.number().min(0),
   advanceReceived: z.number().min(0),
+  advanceReason: z.string().optional(),
 });
 
 type BookingFormData = z.infer<typeof bookingSchema>;
@@ -76,6 +77,7 @@ export const EditBooking: React.FC = () => {
       tariffRate: 0,
       totalAmount: 0,
       advanceReceived: 0,
+      advanceReason: '',
     }
   });
 
@@ -117,6 +119,7 @@ export const EditBooking: React.FC = () => {
       tariffRate: booking.tariffRate,
       totalAmount: booking.totalAmount,
       advanceReceived: booking.advanceReceived,
+      advanceReason: booking.advanceReason || '',
     });
   }, [booking, reset]);
 
@@ -167,7 +170,12 @@ export const EditBooking: React.FC = () => {
   };
 
   const driverOptions = drivers.filter(d => d.status === 'active').map(d => ({ value: d.id, label: d.name }));
-  const vehicleOptions = vehicles.filter(v => v.status === 'active').map(v => ({ value: v.id, label: v.registrationNumber }));
+  const vehicleOptions = vehicles
+    .filter(v => v.status === 'active')
+    .map(vehicle => ({
+      value: vehicle.id,
+      label: `${vehicle.registrationNumber} (${vehicle.category})`
+    }));
   const companyOptions = companies.map(c => ({ value: c.id, label: c.name }));
 
   const handleAddCity = async (name: string) => {
@@ -255,6 +263,23 @@ export const EditBooking: React.FC = () => {
               <Input type="number" step="0.01" {...register('advanceReceived', { valueAsNumber: true })} label="Advance to Driver" />
             </div>
             <div className="p-4 bg-amber-50 border border-amber-200 rounded-md text-sm">Balance: ₹{(totalAmount - advanceReceived).toLocaleString()}</div>
+            
+            {/* Advance Reason */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Advance Reason / Notes
+              </label>
+              <textarea
+                {...register('advanceReason')}
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500 sm:text-sm"
+                placeholder="Enter reason for giving advance to driver (optional)"
+                rows={3}
+              />
+              {errors.advanceReason?.message && (
+                <p className="mt-1 text-sm text-red-600">{errors.advanceReason.message}</p>
+              )}
+            </div>
+            
             <div className="flex justify-end space-x-3">
               <Button type="button" variant="outline" onClick={() => navigate(-1)}>Cancel</Button>
               <Button type="submit" loading={isSubmitting}>Save Changes</Button>

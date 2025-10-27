@@ -147,6 +147,7 @@ export const bookingSchema = z.object({
   tariffRate: z.number().min(0, "Positive rate"),
   totalAmount: z.number().min(0, "Positive amount"),
   advanceReceived: z.number().min(0, "Positive advance"),
+  advanceReason: z.string().optional(),
 });
 
 export const updateBookingSchema = bookingSchema.partial().extend({

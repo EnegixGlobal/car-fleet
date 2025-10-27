@@ -151,6 +151,7 @@ export interface Booking {
   totalAmount: number;
   advanceReceived: number;
   balance: number;
+  advanceReason?: string; // Reason for giving advance to driver
   status: "booked" | "ongoing" | "completed" | "yet-to-start" | "canceled";
   dutySlips?: UploadedFile[]; // multiple uploads (pdf/images)
   expenses: Expense[];
@@ -162,6 +163,9 @@ export interface Booking {
   dutySlipSubmittedToCompany: boolean;
   createdAt: string;
   statusHistory: StatusChange[];
+
+  driverName?: string;
+  vehicleNumber?: string;
 }
 
 export interface Customer {

@@ -755,10 +755,12 @@ export const DriverReport: React.FC = () => {
                 <Button
                   size="sm"
                   className="h-8 pt-2 mt-6"
-                  disabled={!selectedBookingId || payAmount <= 0 || processingPayment}
+                  disabled={
+                    !selectedBookingId || payAmount <= 0 || processingPayment
+                  }
                   onClick={handlePayToDriver}
                 >
-                  <Icon name="plus" className="h-4 w-4 mr-1" /> 
+                  <Icon name="plus" className="h-4 w-4 mr-1" />
                   {processingPayment ? "Processing..." : "Pay"}
                 </Button>
               </div>
@@ -810,7 +812,9 @@ export const DriverReport: React.FC = () => {
             key: "driverReceived",
             header: "Driver Received",
             render: (r) =>
-              `₹${Number(r.driverReceived).toLocaleString(undefined, {
+              `₹${(
+                Number(r.driverReceived) + Number(r.driverExpenses)
+              ).toLocaleString(undefined, {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
               })}`,

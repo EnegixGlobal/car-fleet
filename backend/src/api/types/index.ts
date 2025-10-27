@@ -214,6 +214,7 @@ export interface IBooking {
   totalAmount: number;
   advanceReceived: number;
   balance: number;
+  advanceReason?: string; // Reason for giving advance to driver
   status: "booked" | "ongoing" | "completed" | "yet-to-start" | "canceled";
   dutySlips?: IDutySlip[];
   expenses: IExpense[];

@@ -29,6 +29,7 @@ const bookingSchema = z.object({
   tariffRate: z.number().min(0, 'Tariff rate must be positive'),
   totalAmount: z.number().min(0, 'Total amount must be positive'),
   advanceReceived: z.number().min(0, 'Advance must be positive'),
+  advanceReason: z.string().optional(),
 });
 
 type BookingFormData = z.infer<typeof bookingSchema>;
@@ -90,9 +91,11 @@ export const CreateBooking: React.FC = () => {
       const bookingData = {
         ...data,
         balance: data.totalAmount - data.advanceReceived,
-  status: 'booked' as const,
+        status: 'booked' as const,
         expenses: [],
         billed: false,
+        dutySlipSubmitted: false,
+        dutySlipSubmittedToCompany: false,
         statusHistory: [{
           id: '1',
           status: 'booked' as const,
@@ -357,6 +360,22 @@ export const CreateBooking: React.FC = () => {
                 error={errors.advanceReceived?.message}
                 placeholder="0.00"
               />
+            </div>
+
+             {/* Advance Reason */}
+             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Advance Reason / Notes
+              </label>
+              <textarea
+                {...register('advanceReason')}
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500 sm:text-sm"
+                placeholder="Enter reason for giving advance to driver (optional)"
+                rows={3}
+              />
+              {errors.advanceReason?.message && (
+                <p className="mt-1 text-sm text-red-600">{errors.advanceReason.message}</p>
+              )}
             </div>
 
             {/* Balance Display */}
