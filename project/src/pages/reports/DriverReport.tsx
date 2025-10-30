@@ -25,11 +25,12 @@ interface ReportRow {
   vehicle: string;
   createdDate: string;
   finalPaid?: number;
+  
 }
 
 export const DriverReport: React.FC = () => {
   const { bookings, drivers, vehicles, updateBooking } = useApp();
-  console.log("bookings", bookings);
+  // console.log("bookings", bookings);
   const ALL_BOOKINGS_ID = "ALL_BOOKINGS";
   const formatMoney = (n: number) =>
     Number.isFinite(n)
@@ -71,26 +72,44 @@ export const DriverReport: React.FC = () => {
       return inRange && matchesDriver;
     });
   }, [bookings, driverId, from, to]);
+  
 
   const bookingPayables = React.useMemo(
     () =>
       filteredBookings.map((b) => {
-        const driverExpenses = (b.expenses || []).reduce(
+        const baseDriverExpenses = (b.expenses || []).reduce(
           (sum, e) => sum + e.amount,
           0
         );
-        const advanceToDriver = b.advanceReceived || 0;
-        const paymentsForBooking = (driverPayments || []).filter(
-          (p) => p.bookingId === b.id
-        );
-        const totalPaymentAmount = paymentsForBooking.reduce(
+
+        // console.log("baseDriverExpenses 1", baseDriverExpenses);
+
+        const advanceReceived = b.advanceReceived || 0;
+        const paymentTotal = (b.payments || []).reduce(
           (sum, p) => sum + (p.amount || 0),
           0
         );
+        const advanceToDriver = advanceReceived + paymentTotal;
+        const paymentsForBooking = (driverPayments || []).filter(
+          (p) => p.bookingId === b.id
+        );
+        
+        // console.log("paymentsForBooking", paymentsForBooking);
+        
+        const totalOilAmount = paymentsForBooking
+          // exclude entries with "Final payment" in description
+          .filter((p) => !p.description?.toLowerCase().includes("final payment"))
+          // then sum the amounts
+          .reduce((sum, p) => sum + (p.amount || 0), 0);
+        
+        // console.log("Total oil amount (without Final payment):", totalOilAmount);
+        
+        const driverExpenses = baseDriverExpenses + totalOilAmount;
+        // console.log("driverExpenses 1", driverExpenses);
         const amountPayable =
-          totalPaymentAmount === 0
-            ? 0
-            : totalPaymentAmount - driverExpenses - advanceToDriver;
+          totalOilAmount === 0
+            ? baseDriverExpenses
+            : driverExpenses - advanceToDriver;
 
         // If finalPaid exists, show finalPaid - amountPayable, otherwise show amountPayable
         // Don't show negative values
@@ -100,12 +119,15 @@ export const DriverReport: React.FC = () => {
 
         return {
           booking: b,
-          totalPaymentAmount,
+          // Use oil amount as the total for Trip Payment summary section
+          totalPaymentAmount: totalOilAmount + baseDriverExpenses + advanceToDriver,
           amountPayable: displayAmountPayable,
         };
       }),
     [filteredBookings, driverPayments]
   );
+
+  // console.log("bookingPayables", bookingPayables);
 
   const trips = React.useMemo(
     () => filteredBookings.length,
@@ -159,9 +181,9 @@ export const DriverReport: React.FC = () => {
 
     try {
       setLoadingDriverPayments(true);
-      console.log("Fetching driver payments for driver ID:", selectedDriverId);
+      // console.log("Fetching driver payments for driver ID:", selectedDriverId);
       const payments = await financeAPI.getDriverPayments(selectedDriverId);
-      console.log("Fetched driver payments:", payments);
+      // console.log("Fetched driver payments:", payments);
       setDriverPayments(payments);
       return payments;
     } catch (error) {
@@ -206,10 +228,16 @@ export const DriverReport: React.FC = () => {
         const vehicle: Vehicle | undefined = vehicles.find(
           (v) => v.id === (b.vehicleId || "")
         );
-        const driverExpenses = b.expenses.reduce((sum, e) => sum + e.amount, 0);
+        const baseDriverExpenses = b.expenses.reduce((sum, e) => sum + e.amount, 0);
+        console.log("baseDriverExpenses 2", baseDriverExpenses);
         // We don't have per-booking advances/received to driver; use 0 placeholders
-        const advanceToDriver = b.advanceReceived || 0;
-        const driverReceived = b.advanceReceived || 0;
+        const advanceReceived = b.advanceReceived || 0;
+        const paymentTotal = (b.payments || []).reduce(
+          (sum, p) => sum + (p.amount || 0),
+          0
+        );
+        const advanceToDriver = advanceReceived + paymentTotal;
+        const driverReceived = advanceReceived + paymentTotal;
         // const driverReceived = payments
         //   .filter(
         //     (p) =>
@@ -229,15 +257,25 @@ export const DriverReport: React.FC = () => {
           0
         );
 
+        
+        const totalOilAmount = paymentsForBooking
+          // exclude entries with "Final payment" in description
+          .filter((p) => !p.description?.toLowerCase().includes("final payment"))
+          // then sum the amounts
+          .reduce((sum, p) => sum + (p.amount || 0), 0);
+          
+        const driverExpenses = baseDriverExpenses + totalOilAmount;
+        console.log("driverExpenses 2", driverExpenses);
+
         // const amount = driverPayments.reduce(
         //   (sum, payment) => sum + (payment.amount || 0),
         //   0
         // );
 
         const amountPayable =
-          totalPaymentAmount === 0
-            ? 0
-            : totalPaymentAmount - driverExpenses - advanceToDriver;
+        totalOilAmount === 0
+            ? baseDriverExpenses
+            : driverExpenses - advanceToDriver;
 
         // If finalPaid exists, show finalPaid - amountPayable, otherwise show amountPayable
         // Don't show negative values
@@ -248,7 +286,7 @@ export const DriverReport: React.FC = () => {
         // If finalPaid exists, add it to driverReceived, otherwise show only driverReceived
         const displayDriverReceived = b.finalPaid
           ? (b.finalPaid || 0) + driverReceived
-          : driverReceived;
+          : driverReceived ;
 
         return {
           id: b.id,
@@ -812,9 +850,9 @@ export const DriverReport: React.FC = () => {
             key: "driverReceived",
             header: "Driver Received",
             render: (r) =>
-              `₹${(
-                Number(r.driverReceived) + Number(r.driverExpenses)
-              ).toLocaleString(undefined, {
+              `₹${
+                Number(r.driverReceived)
+              .toLocaleString(undefined, {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
               })}`,
