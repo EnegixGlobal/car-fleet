@@ -104,5 +104,11 @@
     /* Completeness */
     // "skipDefaultLibCheck": true,                      /* Skip type checking .d.ts files that are included with TypeScript. */
     "skipLibCheck": true                                 /* Skip type checking all .d.ts files. */
-  }
+
+    "resolveJsonModule": true,           //  allow JSON imports
+    "moduleResolution": "node",          //  needed for imports to resolve properly
+    "types": ["node"]                    //  ensures Node types available
+  },
+   "include": ["src/**/*"],
+  "exclude": ["node_modules"]
 }
