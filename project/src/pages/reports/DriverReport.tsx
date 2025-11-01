@@ -106,10 +106,40 @@ export const DriverReport: React.FC = () => {
         
         const driverExpenses = baseDriverExpenses + totalOilAmount;
         // console.log("driverExpenses 1", driverExpenses);
-        const amountPayable =
-          totalOilAmount === 0
-            ? baseDriverExpenses
-            : driverExpenses - advanceToDriver;
+      const amountPayable = (() => {
+        const hasPayments = (b.payments || []).length > 0;
+        const hasPaymentAmount = (b.payments || []).reduce(
+          (sum, p) => sum + (p.amount || 0),
+          0
+        );
+
+        if (totalOilAmount === 0) {
+          // 🧮 No oil payment case
+          if (hasPaymentAmount === baseDriverExpenses) {
+            return 0;
+          } else if (
+            hasPaymentAmount < baseDriverExpenses &&
+            hasPaymentAmount > 0
+          ) {
+            return baseDriverExpenses - hasPaymentAmount;
+          } else {
+            return baseDriverExpenses;
+          }
+        } else {
+          // 🛢️ Oil payment exists
+          if (hasPaymentAmount === 0) {
+            return baseDriverExpenses + totalOilAmount;
+          } else if (hasPaymentAmount < baseDriverExpenses) {
+            return totalOilAmount + (baseDriverExpenses - hasPaymentAmount);
+          } else {
+            return totalOilAmount;
+          }
+        }
+      })();
+
+
+
+
 
         // If finalPaid exists, show finalPaid - amountPayable, otherwise show amountPayable
         // Don't show negative values
@@ -120,14 +150,15 @@ export const DriverReport: React.FC = () => {
         return {
           booking: b,
           // Use oil amount as the total for Trip Payment summary section
-          totalPaymentAmount: totalOilAmount + baseDriverExpenses + advanceToDriver,
+          totalPaymentAmount: advanceToDriver + (b.finalPaid || 0),
+
           amountPayable: displayAmountPayable,
         };
       }),
     [filteredBookings, driverPayments]
   );
 
-  // console.log("bookingPayables", bookingPayables);
+  console.log("bookingPayables", bookingPayables);
 
   const trips = React.useMemo(
     () => filteredBookings.length,
@@ -229,7 +260,7 @@ export const DriverReport: React.FC = () => {
           (v) => v.id === (b.vehicleId || "")
         );
         const baseDriverExpenses = b.expenses.reduce((sum, e) => sum + e.amount, 0);
-        console.log("baseDriverExpenses 2", baseDriverExpenses);
+        // console.log("baseDriverExpenses 2", baseDriverExpenses);
         // We don't have per-booking advances/received to driver; use 0 placeholders
         const advanceReceived = b.advanceReceived || 0;
         const paymentTotal = (b.payments || []).reduce(
@@ -265,17 +296,68 @@ export const DriverReport: React.FC = () => {
           .reduce((sum, p) => sum + (p.amount || 0), 0);
           
         const driverExpenses = baseDriverExpenses + totalOilAmount;
-        console.log("driverExpenses 2", driverExpenses);
+        // console.log("driverExpenses 2", driverExpenses);
 
         // const amount = driverPayments.reduce(
         //   (sum, payment) => sum + (payment.amount || 0),
         //   0
         // );
 
-        const amountPayable =
-        totalOilAmount === 0
-            ? baseDriverExpenses
-            : driverExpenses - advanceToDriver;
+        // const amountPayable = (() => {
+        //   const hasPayments = (b.payments || []).length > 0;
+
+        //   if (totalOilAmount === 0) {
+        //     if (!hasPayments) {
+        //       return baseDriverExpenses;
+        //     } else if (advanceToDriver === baseDriverExpenses * 2) {
+        //       return 0;
+        //     } else if (advanceToDriver > baseDriverExpenses) {
+        //       return baseDriverExpenses - paymentTotal;
+        //     } else {
+        //       return baseDriverExpenses; // ✅ fallback for other edge cases
+        //     }
+        //   } else {
+        //     if (!hasPayments) {
+        //       return driverExpenses;
+        //     } else {
+        //       return totalOilAmount;
+        //     }
+        //   }
+        // })();
+
+        const amountPayable = (() => {
+          const hasPayments = (b.payments || []).length > 0;
+          const hasPaymentAmount = (b.payments || []).reduce(
+            (sum, p) => sum + (p.amount || 0),
+            0
+          );
+
+          if (totalOilAmount === 0) {
+            // 🧮 No oil payment case
+            if (hasPaymentAmount === baseDriverExpenses) {
+              return 0;
+            } else if (
+              hasPaymentAmount < baseDriverExpenses &&
+              hasPaymentAmount > 0
+            ) {
+              return baseDriverExpenses - hasPaymentAmount;
+            } else {
+              return baseDriverExpenses;
+            }
+          } else {
+            // 🛢️ Oil payment exists
+            if (hasPaymentAmount === 0) {
+              return baseDriverExpenses + totalOilAmount;
+            } else if (hasPaymentAmount < baseDriverExpenses) {
+              return totalOilAmount + (baseDriverExpenses - hasPaymentAmount);
+            } else {
+              return totalOilAmount;
+            }
+          }
+        })();
+
+
+
 
         // If finalPaid exists, show finalPaid - amountPayable, otherwise show amountPayable
         // Don't show negative values
@@ -308,10 +390,10 @@ export const DriverReport: React.FC = () => {
 
       // Fetch driver payments when generating report if a driver is selected
       if (driverId) {
-        console.log(
-          "Generating report - fetching driver payments for:",
-          driverId
-        );
+        // console.log(
+        //   "Generating report - fetching driver payments for:",
+        //   driverId
+        // );
         await fetchDriverPayments(driverId);
       } else {
         // Clear driver payments if no driver selected
