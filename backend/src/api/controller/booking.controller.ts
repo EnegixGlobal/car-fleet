@@ -94,6 +94,23 @@ export const addExpense = async (req: Request, res: Response) => {
   res.json(booking);
 };
 
+export const updateExpense = async (req: Request, res: Response) => {
+  const data = expenseSchema.partial().parse(req.body);
+  const booking = await service.updateExpense(
+    req.params.id,
+    req.params.expenseId,
+    data as any
+  );
+  if (!booking) return res.status(404).json({ message: 'Booking or expense not found' });
+  res.json(booking);
+};
+
+export const deleteExpense = async (req: Request, res: Response) => {
+  const booking = await service.deleteExpense(req.params.id, req.params.expenseId);
+  if (!booking) return res.status(404).json({ message: 'Booking or expense not found' });
+  res.json(booking);
+};
+
 export const updateStatus = async (req: Request, res: Response) => {
   const { status, changedBy } = statusSchema.parse(req.body);
   const booking = await service.updateStatus(
@@ -135,6 +152,26 @@ export const addPayment = async (req: Request, res: Response) => {
 export const getPayments = async (req: Request, res: Response) => {
   const payments = await service.listPayments(req.params.id);
   res.json(payments);
+};
+
+export const updatePayment = async (req: Request, res: Response) => {
+  // Allow partial updates; coerce paidOn to Date if provided
+  const data = bookingPaymentSchema.partial().parse(req.body);
+  const updates: any = { ...data };
+  if (updates.paidOn) updates.paidOn = new Date(updates.paidOn);
+  const booking = await service.updatePayment(
+    req.params.id,
+    req.params.paymentId,
+    updates
+  );
+  if (!booking) return res.status(404).json({ message: 'Booking or payment not found' });
+  res.json(booking);
+};
+
+export const deletePayment = async (req: Request, res: Response) => {
+  const booking = await service.deletePayment(req.params.id, req.params.paymentId);
+  if (!booking) return res.status(404).json({ message: 'Booking or payment not found' });
+  res.json(booking);
 };
 
 // Driver specific payments tied to a booking

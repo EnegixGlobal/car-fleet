@@ -102,21 +102,34 @@ export const CompanyReport: React.FC = () => {
       const company: Company | undefined = companies.find(
         (c) => c.id === (b.companyId || "")
       );
-      const driverExpenses = b.expenses.reduce((sum, e) => sum + e.amount, 0);
-      // We don't have per-booking advances/received to driver; use 0 placeholders
-      const advanceToDriver = b.advanceReceived || 0;
-      // Sum driver payments for this booking (from finance payments by driver)
-      const financePayments = b.driverId
-        ? driverIdToPayments.get(b.driverId) || []
-        : [];
-      const driverReceived = b.advanceReceived + driverExpenses || 0;
-      const amountPayable = financePayments
-        .filter((p) => p.bookingId === b.id)
+      const baseDriverExpenses = b.expenses.reduce((sum, e) => sum + e.amount, 0);
+      const hasPaymentAmount = (b.payments || []).reduce((sum, p) => sum + (p.amount || 0), 0);
+      const advanceToDriver = (b.advanceReceived || 0) + hasPaymentAmount;
+      const financePayments = b.driverId ? driverIdToPayments.get(b.driverId) || [] : [];
+      const paymentsForBooking = financePayments.filter((p) => p.bookingId === b.id);
+      const totalOilAmount = paymentsForBooking
+        .filter((p) => !p.description?.toLowerCase().includes("final payment"))
         .reduce((s, p) => s + (p.amount || 0), 0);
-      // const amountPayable = Math.max(
-      //   0,
-      //   amountPay - driverExpenses - advanceToDriver
-      // );
+      const driverExpenses = baseDriverExpenses + totalOilAmount;
+      const amountPayableBase = (() => {
+        if (totalOilAmount === 0) {
+          if (hasPaymentAmount === baseDriverExpenses) return 0;
+          if (hasPaymentAmount < baseDriverExpenses && hasPaymentAmount > 0)
+            return baseDriverExpenses - hasPaymentAmount;
+          return baseDriverExpenses;
+        } else {
+          if (hasPaymentAmount === 0) return baseDriverExpenses + totalOilAmount;
+          if (hasPaymentAmount < baseDriverExpenses)
+            return totalOilAmount + (baseDriverExpenses - hasPaymentAmount);
+          return totalOilAmount;
+        }
+      })();
+      const amountPayable = b.finalPaid
+        ? Math.max(0, (b.finalPaid || 0) - amountPayableBase)
+        : Math.max(0, amountPayableBase);
+      const driverReceived = b.finalPaid
+        ? (b.finalPaid || 0) + ((b.advanceReceived || 0) + hasPaymentAmount)
+        : ((b.advanceReceived || 0) + hasPaymentAmount);
       return {
         id: b.id,
         sNo: idx + 1,
@@ -472,11 +485,11 @@ export const CompanyReport: React.FC = () => {
             header: "Driver Received",
             render: (r) => `₹${r.driverReceived.toLocaleString()}`,
           },
-          {
-            key: "amountPayable",
-            header: "Amount Payable",
-            render: (r) => `₹${r.amountPayable.toLocaleString()}`,
-          },
+          // {
+          //   key: "amountPayable",
+          //   header: "Amount Payable",
+          //   render: (r) => `₹${r.amountPayable.toLocaleString()}`,
+          // },
           { key: "vehicle", header: "Vehicle" },
           {
             key: "createdDate",

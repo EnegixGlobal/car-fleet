@@ -13,6 +13,7 @@ import toast from 'react-hot-toast';
 
 export const Finance: React.FC = () => {
   const { bookings, drivers, companies, payments, addPayment } = useApp();
+  console.log("bookings", bookings);
   const [apiMetrics, setApiMetrics] = useState<{ totalRevenue: number; totalOutstanding: number; totalExpenses: number; netProfit: number }|null>(null);
   const [loadingMetrics, setLoadingMetrics] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
