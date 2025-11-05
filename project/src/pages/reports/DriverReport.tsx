@@ -20,6 +20,7 @@ interface ReportRow {
   driverName: string;
   advanceToDriver: number;
   driverExpenses: number;
+  onDutyPaid: number;
   driverReceived: number;
   amountPayable: number;
   vehicle: string;
@@ -267,7 +268,7 @@ export const DriverReport: React.FC = () => {
           (sum, p) => sum + (p.amount || 0),
           0
         );
-        const advanceToDriver = advanceReceived + paymentTotal;
+        const advanceToDriver = advanceReceived ;
         const driverReceived = advanceReceived + paymentTotal;
         // const driverReceived = payments
         //   .filter(
@@ -380,6 +381,7 @@ export const DriverReport: React.FC = () => {
           driverName: driver?.name || "-",
           advanceToDriver,
           driverExpenses,
+          onDutyPaid: paymentTotal,
           driverReceived: displayDriverReceived,
           amountPayable: displayAmountPayable,
           vehicle: vehicle?.registrationNumber || "-",
@@ -420,6 +422,7 @@ export const DriverReport: React.FC = () => {
       "Driver Name",
       "Advance to Driver",
       "Driver Expenses",
+      "On duty Paid",
       "Driver Received",
       "Amount Payable",
       "Vehicle",
@@ -435,6 +438,7 @@ export const DriverReport: React.FC = () => {
         r.driverName,
         Number(r.advanceToDriver).toFixed(2),
         Number(r.driverExpenses).toFixed(2),
+        Number(r.onDutyPaid).toFixed(2),
         Number(r.driverReceived).toFixed(2),
         Number(r.amountPayable).toFixed(2),
         r.vehicle,
@@ -470,6 +474,8 @@ export const DriverReport: React.FC = () => {
                   r.advanceToDriver
                 ).toFixed(2)}</td><td>${Number(r.driverExpenses).toFixed(
                   2
+                )}</td><td>${Number(r.onDutyPaid).toFixed(
+                  2
                 )}</td><td>${Number(r.driverReceived).toFixed(
                   2
                 )}</td><td>${Number(r.amountPayable).toFixed(2)}</td><td>${
@@ -499,6 +505,7 @@ export const DriverReport: React.FC = () => {
       "Driver Name",
       "Advance to Driver",
       "Driver Expenses",
+      "On duty Paid",
       "Driver Received",
       "Amount Payable",
       "Vehicle",
@@ -514,6 +521,7 @@ export const DriverReport: React.FC = () => {
         r.driverName,
         Number(r.advanceToDriver).toFixed(2),
         Number(r.driverExpenses).toFixed(2),
+        Number(r.onDutyPaid).toFixed(2),
         Number(r.driverReceived).toFixed(2),
         Number(r.amountPayable).toFixed(2),
         r.vehicle,
@@ -533,7 +541,7 @@ export const DriverReport: React.FC = () => {
     );
     w.document.write(`<h3>Driver Report (${from} to ${to})</h3>`);
     w.document.write(
-      "<table><thead><tr><th>S.No</th><th>Booking Date</th><th>Customer Name</th><th>From / To</th><th>Booking Amount</th><th>Driver Name</th><th>Advance to Driver</th><th>Driver Expenses</th><th>Driver Received</th><th>Amount Payable</th><th>Vehicle</th><th>Created Date</th></tr></thead><tbody>"
+      "<table><thead><tr><th>S.No</th><th>Booking Date</th><th>Customer Name</th><th>From / To</th><th>Booking Amount</th><th>Driver Name</th><th>Advance to Driver</th><th>Driver Expenses</th><th>On duty Paid</th><th>Driver Received</th><th>Amount Payable</th><th>Vehicle</th><th>Created Date</th></tr></thead><tbody>"
     );
     rows.forEach((r) => {
       w.document.write(
@@ -544,6 +552,8 @@ export const DriverReport: React.FC = () => {
         )}</td><td>${r.driverName}</td><td>${Number(r.advanceToDriver).toFixed(
           2
         )}</td><td>${Number(r.driverExpenses).toFixed(2)}</td><td>${Number(
+          r.onDutyPaid
+        ).toFixed(2)}</td><td>${Number(
           r.driverReceived
         ).toFixed(2)}</td><td>${Number(r.amountPayable).toFixed(2)}</td><td>${
           r.vehicle
@@ -915,6 +925,15 @@ export const DriverReport: React.FC = () => {
             header: "Advance to Driver",
             render: (r) =>
               `₹${Number(r.advanceToDriver).toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}`,
+          },
+          {
+            key: "onDutyPaid",
+            header: "On duty Paid",
+            render: (r) =>
+              `₹${Number(r.onDutyPaid).toLocaleString(undefined, {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
               })}`,

@@ -924,7 +924,7 @@ interface RawStatusChange {
 interface RawExpense {
   id?: string;
   _id?: string;
-  type: "fuel" | "toll" | "parking" | "other";
+  type: "fuel" | "toll" | "parking" | "night" | "perday" | "rent" | "other";
   amount: number;
   description: string;
 }
@@ -1222,6 +1222,18 @@ export const bookingAPI = {
     const res = await api.post(`/bookings/${id}/expenses`, expense);
     return bookingAPI._normalize(res.data as RawFullBooking);
   },
+  updateExpense: async (
+    id: string,
+    expenseId: string,
+    updates: Partial<{ type: RawExpense["type"]; amount: number; description: string }>
+  ): Promise<BookingDTO> => {
+    const res = await api.put(`/bookings/${id}/expenses/${expenseId}`, updates);
+    return bookingAPI._normalize(res.data as RawFullBooking);
+  },
+  deleteExpense: async (id: string, expenseId: string): Promise<BookingDTO> => {
+    const res = await api.delete(`/bookings/${id}/expenses/${expenseId}`);
+    return bookingAPI._normalize(res.data as RawFullBooking);
+  },
   addPayment: async (
     id: string,
     payment: {
@@ -1237,6 +1249,27 @@ export const bookingAPI = {
       body.paidOn = new Date(body.paidOn + "T00:00:00.000Z").toISOString();
     }
     const res = await api.post(`/bookings/${id}/payments`, body);
+    return bookingAPI._normalize(res.data as RawFullBooking);
+  },
+  updatePayment: async (
+    id: string,
+    paymentId: string,
+    updates: Partial<{
+      amount: number;
+      comments?: string;
+      collectedBy?: string;
+      paidOn: string;
+    }>
+  ): Promise<BookingDTO> => {
+    const body: any = { ...updates };
+    if (body.paidOn && /^\d{4}-\d{2}-\d{2}$/.test(body.paidOn)) {
+      body.paidOn = new Date(body.paidOn + 'T00:00:00.000Z').toISOString();
+    }
+    const res = await api.put(`/bookings/${id}/payments/${paymentId}`, body);
+    return bookingAPI._normalize(res.data as RawFullBooking);
+  },
+  deletePayment: async (id: string, paymentId: string): Promise<BookingDTO> => {
+    const res = await api.delete(`/bookings/${id}/payments/${paymentId}`);
     return bookingAPI._normalize(res.data as RawFullBooking);
   },
   updateStatus: async (

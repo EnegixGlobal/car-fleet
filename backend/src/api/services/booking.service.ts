@@ -67,6 +67,34 @@ export const addExpense = async (bookingId: string, expense: IBooking['expenses'
   return Booking.findByIdAndUpdate(bookingId, { $push: { expenses: expense } }, { new: true }).populate('companyId driverId vehicleId customerId');
 };
 
+export const updateExpense = async (
+  bookingId: string,
+  expenseId: string,
+  updates: Partial<IBooking['expenses'][0]>
+) => {
+  // Use positional operator to update the matching embedded expense
+  return Booking.findOneAndUpdate(
+    { _id: bookingId, 'expenses._id': expenseId },
+    {
+      $set: {
+        'expenses.$.type': updates.type,
+        'expenses.$.amount': updates.amount,
+        'expenses.$.description': updates.description,
+        'expenses.$.receipt': updates.receipt,
+      },
+    },
+    { new: true, runValidators: true }
+  ).populate('companyId driverId vehicleId customerId');
+};
+
+export const deleteExpense = async (bookingId: string, expenseId: string) => {
+  return Booking.findByIdAndUpdate(
+    bookingId,
+    { $pull: { expenses: { _id: expenseId } } },
+    { new: true }
+  ).populate('companyId driverId vehicleId customerId');
+};
+
 export const updateStatus = async (bookingId: string, status: IBooking['status'], changedBy: string) => {
   const change = { status, timestamp: new Date(), changedBy };
   return Booking.findByIdAndUpdate(bookingId, { status, $push: { statusHistory: change } }, { new: true }).populate('companyId driverId vehicleId customerId');
@@ -93,4 +121,31 @@ export const addPayment = async (bookingId: string, payment: NonNullable<IBookin
 export const listPayments = async (bookingId: string) => {
   const booking = await Booking.findById(bookingId).select('payments');
   return booking?.payments || [];
+};
+
+export const updatePayment = async (
+  bookingId: string,
+  paymentId: string,
+  updates: Partial<NonNullable<IBooking['payments']>[number]>
+) => {
+  return Booking.findOneAndUpdate(
+    { _id: bookingId, 'payments._id': paymentId },
+    {
+      $set: {
+        'payments.$.amount': updates.amount,
+        'payments.$.comments': updates.comments,
+        'payments.$.collectedBy': updates.collectedBy,
+        'payments.$.paidOn': updates.paidOn,
+      },
+    },
+    { new: true, runValidators: true }
+  ).populate('companyId driverId vehicleId customerId');
+};
+
+export const deletePayment = async (bookingId: string, paymentId: string) => {
+  return Booking.findByIdAndUpdate(
+    bookingId,
+    { $pull: { payments: { _id: paymentId } } },
+    { new: true }
+  ).populate('companyId driverId vehicleId customerId');
 };

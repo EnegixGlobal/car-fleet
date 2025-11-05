@@ -105,6 +105,7 @@ export const DriverList: React.FC = () => {
       >
   <Icon name="eye" className="h-4 w-4" />
       </button>
+      <span className="text-gray-300">|</span>
       <button
   onClick={(e) => { e.stopPropagation(); navigate(`/drivers/${driver.id}/edit`); }}
         className="text-amber-600 hover:text-amber-800"

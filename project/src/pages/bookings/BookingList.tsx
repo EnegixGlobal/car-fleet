@@ -131,6 +131,7 @@ export const BookingList: React.FC = () => {
       >
   <Icon name="eye" className="h-4 w-4" />
       </button>
+      <span className="text-gray-300">|</span>
       {hasRole(['admin', 'dispatcher']) && (
         <button
           onClick={() => navigate(`/bookings/${booking.id}/edit`)}

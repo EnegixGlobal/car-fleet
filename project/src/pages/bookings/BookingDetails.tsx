@@ -31,9 +31,11 @@ export const BookingDetails: React.FC = () => {
   const { hasRole } = useAuth();
 
   const [showExpenseModal, setShowExpenseModal] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [editingPayment, setEditingPayment] = useState<Booking["payments"] extends (infer T)[] ? T | null : any>(null);
   const [showDriverPaymentModal, setShowDriverPaymentModal] = useState(false);
   const [driverPayments, setDriverPayments] = useState<DriverPayment[]>([]);
   const [editingDriverPayment, setEditingDriverPayment] =
@@ -199,17 +201,38 @@ export const BookingDetails: React.FC = () => {
 
   const onAddExpense = async (data: ExpenseForm) => {
     try {
-      const updated = await bookingAPI.addExpense(booking.id, {
-        type: data.type,
-        amount: parseFloat(data.amount),
-        description: data.description,
-      });
+      let updated;
+      if (editingExpense) {
+        updated = await bookingAPI.updateExpense(booking.id, editingExpense.id, {
+          type: data.type,
+          amount: parseFloat(data.amount),
+          description: data.description,
+        });
+      } else {
+        updated = await bookingAPI.addExpense(booking.id, {
+          type: data.type,
+          amount: parseFloat(data.amount),
+          description: data.description,
+        });
+      }
       updateBooking(booking.id, updated as unknown as Partial<Booking>);
-      toast.success("Expense added successfully");
+      toast.success(editingExpense ? "Expense updated successfully" : "Expense added successfully");
       setShowExpenseModal(false);
       resetExpense();
+      setEditingExpense(null);
     } catch {
-      toast.error("Failed to add expense");
+      toast.error(editingExpense ? "Failed to update expense" : "Failed to add expense");
+    }
+  };
+
+  const onDeleteExpense = async (expenseId: string) => {
+    if (!confirm("Delete this expense?")) return;
+    try {
+      const updated = await bookingAPI.deleteExpense(booking.id, expenseId);
+      updateBooking(booking.id, updated as unknown as Partial<Booking>);
+      toast.success("Expense deleted");
+    } catch {
+      toast.error("Failed to delete expense");
     }
   };
 
@@ -263,20 +286,42 @@ export const BookingDetails: React.FC = () => {
 
   const onAddPayment = async (data: PaymentForm) => {
     try {
-      const updated = await bookingAPI.addPayment(booking.id, {
-        amount: parseFloat(data.amount),
-        comments: data.comments,
-        collectedBy: data.collectedBy,
-        paidOn: data.paidOn,
-      });
+      let updated;
+      if (editingPayment) {
+        updated = await bookingAPI.updatePayment(booking.id, editingPayment.id, {
+          amount: parseFloat(data.amount),
+          comments: data.comments,
+          collectedBy: data.collectedBy,
+          paidOn: data.paidOn,
+        });
+      } else {
+        updated = await bookingAPI.addPayment(booking.id, {
+          amount: parseFloat(data.amount),
+          comments: data.comments,
+          collectedBy: data.collectedBy,
+          paidOn: data.paidOn,
+        });
+      }
       updateBooking(booking.id, updated as unknown as Partial<Booking>);
-      toast.success("Payment recorded");
+      toast.success(editingPayment ? "Payment updated" : "Payment recorded");
       setShowPaymentModal(false);
       resetPayment();
+      setEditingPayment(null);
       // Restore default collectedBy for next time
       if (driver) setValuePayment("collectedBy", driver.name);
     } catch {
-      toast.error("Failed to record payment");
+      toast.error(editingPayment ? "Failed to update payment" : "Failed to record payment");
+    }
+  };
+
+  const onDeletePayment = async (paymentId: string) => {
+    if (!confirm('Delete this payment?')) return;
+    try {
+      const updated = await bookingAPI.deletePayment(booking.id, paymentId);
+      updateBooking(booking.id, updated as unknown as Partial<Booking>);
+      toast.success('Payment deleted');
+    } catch {
+      toast.error('Failed to delete payment');
     }
   };
 
@@ -330,7 +375,25 @@ export const BookingDetails: React.FC = () => {
     (sum, p) => sum + p.amount,
     0
   );
-  const totalDriverPayments = driverPayments.reduce((s, p) => s + p.amount, 0);
+  // const totalDriverPayments = driverPayments.reduce((s, p) => s + p.amount, 0);
+
+
+  const finalPayment = driverPayments.find(p =>
+    p.description?.toLowerCase().includes("final payment")
+  );
+  
+  let totalDriverPayments;
+  
+  if (finalPayment) {
+    // Agar final payment hai, to sirf uska amount dikhana
+    totalDriverPayments = finalPayment.amount;
+  } else {
+    // Agar final payment nahi hai, to sab normal payments ka sum dikhana
+    totalDriverPayments = driverPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+  }
+  
+  console.log("Total Driver Payment:", totalDriverPayments);
+  
 
   return (
     <div className="space-y-6">
@@ -533,9 +596,43 @@ export const BookingDetails: React.FC = () => {
                           {expense.description}
                         </p>
                       </div>
-                      <p className="font-medium">
-                        ₹{expense.amount.toLocaleString()}
-                      </p>
+                      <div className="flex items-center space-x-3">
+                        <p className="font-medium mr-2">
+                          ₹{expense.amount.toLocaleString()}
+                        </p>
+                        {hasRole(["admin", "dispatcher"]) && (
+                          <div className="flex items-center space-x-1">
+                            <span className="text-gray-300">|</span>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="p-1 border-0"
+                              aria-label="Edit expense"
+                              onClick={() => {
+                                setEditingExpense(expense);
+                                resetExpense({
+                                  type: expense.type as ExpenseForm["type"],
+                                  amount: String(expense.amount),
+                                  description: expense.description,
+                                });
+                                setShowExpenseModal(true);
+                              }}
+                            >
+                              <Icon name="edit" className="h-4 w-4" />
+                            </Button>
+                            <span className="text-gray-300">|</span>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="p-1 border-0"
+                              aria-label="Delete expense"
+                              onClick={() => onDeleteExpense(expense.id)}
+                            >
+                              <Icon name="delete" className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ))}
                   <div className="border-t pt-3 flex justify-between items-center font-medium">
@@ -581,9 +678,44 @@ export const BookingDetails: React.FC = () => {
                           <p className="text-gray-600 truncate">{p.comments}</p>
                         )}
                       </div>
-                      <div className="text-right text-xs text-gray-500">
-                        {p.collectedBy && <p>Collected by: {p.collectedBy}</p>}
-                        <p>Paid on: {p.paidOn}</p>
+                      <div className="flex items-center space-x-2">
+                        <div className="text-right text-xs text-gray-500 mr-1">
+                          {p.collectedBy && <p>Collected by: {p.collectedBy}</p>}
+                          <p>Paid on: {p.paidOn}</p>
+                        </div>
+                        {hasRole(["admin", "accountant", "dispatcher"]) && (
+                          <>
+                            <span className="text-gray-300">|</span>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="p-1 border-0"
+                              aria-label="Edit payment"
+                              onClick={() => {
+                                setEditingPayment(p as any);
+                                setShowPaymentModal(true);
+                                setValuePayment('amount', String(p.amount));
+                                setValuePayment('comments', p.comments || '');
+                                setValuePayment('collectedBy', p.collectedBy || '');
+                                // paidOn comes as ISO string; keep just date for input
+                                const d = (p.paidOn || '').slice(0, 10);
+                                setValuePayment('paidOn', d);
+                              }}
+                            >
+                              <Icon name="edit" className="h-4 w-4" />
+                            </Button>
+                            <span className="text-gray-300">|</span>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="p-1 border-0"
+                              aria-label="Delete payment"
+                              onClick={() => onDeletePayment(p.id)}
+                            >
+                              <Icon name="delete" className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -878,7 +1010,7 @@ export const BookingDetails: React.FC = () => {
               </div>
               <div className="border-t pt-2 flex justify-between font-semibold">
                 <span>Balance</span>
-                <span>₹{booking.balance.toLocaleString()}</span>
+                <span>₹{(booking.balance - totalPayments).toLocaleString()}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-gray-600">Billing Status</span>
@@ -1063,8 +1195,11 @@ export const BookingDetails: React.FC = () => {
       {/* Expense Modal */}
       <Modal
         isOpen={showExpenseModal}
-        onClose={() => setShowExpenseModal(false)}
-        title="Add Expense"
+        onClose={() => {
+          setShowExpenseModal(false);
+          setEditingExpense(null);
+        }}
+        title={editingExpense ? "Edit Expense" : "Add Expense"}
       >
         <form
           onSubmit={handleExpenseSubmit(onAddExpense)}
@@ -1112,7 +1247,7 @@ export const BookingDetails: React.FC = () => {
             >
               Cancel
             </Button>
-            <Button type="submit">Add Expense</Button>
+            <Button type="submit">{editingExpense ? "Save" : "Add Expense"}</Button>
           </div>
         </form>
       </Modal>
@@ -1156,8 +1291,8 @@ export const BookingDetails: React.FC = () => {
       {/* Add Payment Modal */}
       <Modal
         isOpen={showPaymentModal}
-        onClose={() => setShowPaymentModal(false)}
-        title="Add Payment"
+        onClose={() => { setShowPaymentModal(false); setEditingPayment(null); }}
+        title={editingPayment ? 'Edit Payment' : 'Add Payment'}
       >
         <form
           onSubmit={handlePaymentSubmit(onAddPayment)}
@@ -1196,7 +1331,7 @@ export const BookingDetails: React.FC = () => {
             >
               Cancel
             </Button>
-            <Button type="submit">Add Payment</Button>
+            <Button type="submit">{editingPayment ? 'Save' : 'Add Payment'}</Button>
           </div>
         </form>
       </Modal>

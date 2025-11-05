@@ -180,7 +180,7 @@ export interface Customer {
 
 export interface Expense {
   id: string;
-  type: "fuel" | "toll" | "parking" | "other";
+  type: "fuel" | "toll" | "parking" | "night" | "perday" | "rent" | "other";
   amount: number;
   description: string;
   receipt?: string;

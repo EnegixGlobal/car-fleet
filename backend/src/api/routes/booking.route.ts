@@ -12,11 +12,15 @@ router.get('/:id', auth(['admin', 'dispatcher', 'driver', 'customer']), controll
 router.put('/:id', auth(['admin', 'dispatcher']), controller.updateBooking); // No driver mutation
 router.delete('/:id', auth(['admin', 'dispatcher']), controller.deleteBooking);
 router.post('/:id/expenses', auth(['admin', 'dispatcher']), controller.addExpense);
+router.put('/:id/expenses/:expenseId', auth(['admin', 'dispatcher']), controller.updateExpense);
+router.delete('/:id/expenses/:expenseId', auth(['admin', 'dispatcher']), controller.deleteExpense);
 router.put('/:id/status', auth(['admin', 'dispatcher', 'driver']), controller.updateStatus); // Driver can update status
 router.post('/:id/duty-slips', auth(['admin', 'dispatcher']), controller.uploadDutySlips);
 router.put('/:id/remove-duty-slip', auth(['admin', 'dispatcher']), controller.removeDutySlip);
 router.post('/:id/payments', auth(['admin','accountant','dispatcher']), controller.addPayment);
 router.get('/:id/payments', auth(['admin','accountant','dispatcher','customer']), controller.getPayments);
+router.put('/:id/payments/:paymentId', auth(['admin','accountant','dispatcher']), controller.updatePayment);
+router.delete('/:id/payments/:paymentId', auth(['admin','accountant','dispatcher']), controller.deletePayment);
 // Driver payment (per booking)
 router.post('/:id/driver-payments', auth(['admin','accountant','dispatcher']), controller.addDriverPayment);
 router.get('/:id/driver-payments', auth(['admin','accountant','dispatcher']), controller.listDriverPayments);

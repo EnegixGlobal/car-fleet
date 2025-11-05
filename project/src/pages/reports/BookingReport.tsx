@@ -84,17 +84,54 @@ export const BookingReport: React.FC = () => {
     const result: ReportRow[] = filtered.map((b, idx) => {
       const veh = vehicles.find((v) => v.id === b.vehicleId);
       const drv = drivers.find((d) => d.id === b.driverId);
-      const expenses = (b.expenses || []).reduce((s, e) => s + e.amount, 0);
 
-       const financePayments = b.driverId
-         ? driverIdToPayments.get(b.driverId) || []
-         : [];
-       const amountPay = financePayments
-         .filter((p) => p.bookingId === b.id)
+      const baseDriverExpenses = (b.expenses || []).reduce(
+        (sum, e) => sum + e.amount,
+        0
+      );
+
+      const financePayments = b.driverId
+        ? driverIdToPayments.get(b.driverId) || []
+        : [];
+      const paymentsForBooking = financePayments.filter(
+        (p) => p.bookingId === b.id
+      );
+      const totalOilAmount = paymentsForBooking
+        .filter((p) => !p.description?.toLowerCase().includes("final payment"))
         .reduce((s, p) => s + (p.amount || 0), 0);
-      
-      const amountPayable = amountPay === 0 ? 0 : amountPay - expenses - b.advanceReceived;
 
+      const driverExpenses = baseDriverExpenses + totalOilAmount;
+
+      const hasPaymentAmount = (b.payments || []).reduce(
+        (s, p) => s + (p.amount || 0),
+        0
+      );
+      const advanceToDriver = (b.advanceReceived || 0) + hasPaymentAmount;
+
+      const amountPayable = (() => {
+        if (totalOilAmount === 0) {
+          if (hasPaymentAmount === baseDriverExpenses) return 0;
+          if (hasPaymentAmount < baseDriverExpenses && hasPaymentAmount > 0)
+            return baseDriverExpenses - hasPaymentAmount;
+          return baseDriverExpenses;
+        } else {
+          if (hasPaymentAmount === 0) return baseDriverExpenses + totalOilAmount;
+          if (hasPaymentAmount < baseDriverExpenses)
+            return totalOilAmount + (baseDriverExpenses - hasPaymentAmount);
+          return totalOilAmount;
+        }
+      })();
+
+      // Compute how much driver actually received at the end
+      const driverReceivedBase = (b.advanceReceived || 0) + hasPaymentAmount;
+      const displayDriverReceived = b.finalPaid
+        ? (b.finalPaid || 0) + driverReceivedBase
+        : driverReceivedBase;
+
+      const amountPay = paymentsForBooking.reduce(
+        (s, p) => s + (p.amount || 0),
+        0
+      );
 
       return {
         id: b.id,
@@ -103,9 +140,9 @@ export const BookingReport: React.FC = () => {
         customerName: b.customerName,
         route: `${b.pickupLocation} / ${b.dropLocation}`,
         bookingAmount: b.totalAmount,
-        advanceReceived: b.advanceReceived,
-        expenses,
-        balance: amountPayable,
+        advanceReceived: advanceToDriver,
+        expenses: driverExpenses,
+        balance: displayDriverReceived,
         driverName: drv?.name || "-",
         vehicle: veh?.registrationNumber || "-",
         status: b.status,
@@ -289,7 +326,7 @@ export const BookingReport: React.FC = () => {
           <div className="text-sm text-gray-700">
             Total Amount:{" "}
             <span className="font-semibold">
-              ₹{totals.payments.toLocaleString()}
+              ₹{(totals.expenses + totals.advance).toLocaleString()}
             </span>
           </div>
           <div className="text-sm text-gray-700">
@@ -341,7 +378,7 @@ export const BookingReport: React.FC = () => {
           },
           {
             key: "balance",
-            header: "Amount Payable",
+            header: "Amount Paid",
             render: (r) => `₹${r.balance.toLocaleString()}`,
           },
           { key: "driverName", header: "Driver Name" },
