@@ -3,7 +3,7 @@ import { Schema, model } from 'mongoose';
 import { IVehicleCategory } from '../types';
 
 const vehicleCategorySchema = new Schema<IVehicleCategory>({
-  name: { type: String, required: true, unique: true, index: true },
+  name: { type: String, required: true, trim: true },
   description: { type: String },
   createdAt: { type: Date, default: Date.now },
 });

@@ -220,7 +220,8 @@ interface RawVehicle {
   id?: string;
   registrationNumber: string;
   category?: string;
-  categoryId?: string | { _id?: string; name?: string };
+  categoryDescription?: string;
+  categoryId?: string | { _id?: string; name?: string; description?: string };
   owner: "owned" | "rented";
   insuranceExpiry: string | Date;
   fitnessExpiry: string | Date;
@@ -237,6 +238,7 @@ export interface VehicleDTO {
   id: string;
   registrationNumber: string;
   category: string;
+  categoryDescription?: string;
   categoryId?: string;
   owner: "owned" | "rented";
   insuranceExpiry: string;
@@ -447,6 +449,11 @@ export const vehicleAPI = {
       category:
         raw.category ||
         (typeof raw.categoryId === "object" ? raw.categoryId.name || "" : ""),
+      categoryDescription:
+        raw.categoryDescription ||
+        (typeof raw.categoryId === "object"
+          ? raw.categoryId.description
+          : undefined),
       categoryId:
         typeof raw.categoryId === "object"
           ? raw.categoryId._id
@@ -1215,6 +1222,9 @@ export const bookingAPI = {
     );
     return bookingAPI._normalize(res.data as RawFullBooking);
   },
+  delete: async (id: string): Promise<void> => {
+    await api.delete(`/bookings/${id}`);
+  },
   addExpense: async (
     id: string,
     expense: { type: RawExpense["type"]; amount: number; description: string }
@@ -1520,18 +1530,22 @@ export const financeAPI = {
       computedAmount?: number;
       settled?: boolean;
       settledAt?: string;
+      distanceKm?: number;
+      mileage?: number;
     };
     return {
       id: raw._id || raw.id!,
+      bookingId: raw.bookingId || bookingId,
+      driverId: payload.driverId,
+      mode: (raw.driverPaymentMode as DriverPayment["mode"]) || payload.mode,
       amount: raw.amount,
-      type: raw.type,
-      date: raw.date,
       description: raw.description,
-      bookingId: raw.bookingId,
-      mode: raw.driverPaymentMode,
+      date: raw.date,
       fuelQuantity: raw.fuelQuantity,
       fuelRate: raw.fuelRate,
       computedAmount: raw.computedAmount,
+      distanceKm: raw.distanceKm,
+      mileage: raw.mileage,
       settled: raw.settled,
       settledAt: raw.settledAt,
     };

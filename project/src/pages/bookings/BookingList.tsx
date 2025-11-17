@@ -1,22 +1,27 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useApp } from '../../context/AppContext';
-import { useAuth } from '../../hooks/useAuth';
-import { DataTable } from '../../components/common/DataTable';
-import { Button } from '../../components/ui/Button';
-import { Badge } from '../../components/ui/Badge';
-import { Icon } from '../../components/ui/Icon';
-import { format, parseISO } from 'date-fns';
-import { Booking } from '../../types';
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useApp } from "../../context/AppContext";
+import { useAuth } from "../../hooks/useAuth";
+import { useToast } from "../../hooks/useToast";
+import { DataTable } from "../../components/common/DataTable";
+import { Button } from "../../components/ui/Button";
+import { Badge } from "../../components/ui/Badge";
+import { Icon } from "../../components/ui/Icon";
+import { format, parseISO } from "date-fns";
+import { Booking } from "../../types";
 
 export const BookingList: React.FC = () => {
   const navigate = useNavigate();
-  const { bookings, drivers, vehicles } = useApp();
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [sourceFilter, setSourceFilter] = useState<string>('all');
-  const [startDate, setStartDate] = useState<string>('');
-  const [endDate, setEndDate] = useState<string>('');
+  const { bookings, drivers, vehicles, companies, deleteBooking, addBooking } =
+    useApp();
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [sourceFilter, setSourceFilter] = useState<string>("all");
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [cloningId, setCloningId] = useState<string | null>(null);
   const { hasRole, user } = useAuth();
+  const { showSuccess, showError } = useToast();
 
   // Filter bookings based on user role
   const getFilteredBookings = () => {
@@ -32,10 +37,20 @@ export const BookingList: React.FC = () => {
   };
 
   let filteredBookings = getFilteredBookings();
-  if (statusFilter !== 'all') filteredBookings = filteredBookings.filter(b => b.status === statusFilter);
-  if (sourceFilter !== 'all') filteredBookings = filteredBookings.filter(b => b.bookingSource === sourceFilter);
-  if (startDate) filteredBookings = filteredBookings.filter(b => b.startDate >= startDate);
-  if (endDate) filteredBookings = filteredBookings.filter(b => b.startDate <= endDate + 'T23:59:59');
+  if (statusFilter !== "all")
+    filteredBookings = filteredBookings.filter((b) => b.status === statusFilter);
+  if (sourceFilter !== "all")
+    filteredBookings = filteredBookings.filter(
+      (b) => b.bookingSource === sourceFilter
+    );
+  if (startDate)
+    filteredBookings = filteredBookings.filter(
+      (b) => b.startDate >= startDate
+    );
+  if (endDate)
+    filteredBookings = filteredBookings.filter(
+      (b) => b.startDate <= endDate + "T23:59:59"
+    );
 
   const getDriverName = (driverId?: string) => {
     if (!driverId) return 'Unassigned';
@@ -47,6 +62,17 @@ export const BookingList: React.FC = () => {
     if (!vehicleId) return 'Unassigned';
     const vehicle = vehicles.find(v => v.id === vehicleId);
     return vehicle?.registrationNumber || 'Unknown Vehicle';
+  };
+
+  const getCompanyName = (companyId?: string) => {
+    if (!companyId) return undefined;
+    return companies.find((c) => c.id === companyId)?.name;
+  };
+
+  const sourceLabels: Record<Booking["bookingSource"], string> = {
+    company: "Company",
+    "travel-agency": "Travel Agency",
+    individual: "Individual",
   };
 
   const processedBookings = filteredBookings.map((b) => ({
@@ -72,18 +98,35 @@ export const BookingList: React.FC = () => {
       render: (booking: Booking) => `#${booking.id.slice(-6)}`
     },
     {
-      key: 'customerName' as keyof Booking,
-      header: 'Customer',
+      key: "customerName" as keyof Booking,
+      header: "Customer",
     },
     {
-      key: 'pickupLocation' as keyof Booking,
-      header: 'Route',
+      key: "bookingSource" as keyof Booking,
+      header: "Booking Source",
+      render: (booking: Booking) => {
+        const companyName = getCompanyName(booking.companyId);
+        const sourceLabel =
+          sourceLabels[booking.bookingSource] || booking.bookingSource;
+        return (
+          <div className="text-sm">
+            <div className="text-sm text-gray-800">{sourceLabel}</div>
+            {companyName && booking.bookingSource !== "individual" && (
+              <div className="text-xs text-gray-500">{companyName}</div>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      key: "pickupLocation" as keyof Booking,
+      header: "Route",
       render: (booking: Booking) => (
         <div className="max-w-xs">
           <div className="text-sm">{booking.pickupLocation}</div>
           <div className="text-xs text-gray-500">to {booking.dropLocation}</div>
         </div>
-      )
+      ),
     },
     {
       key: 'startDate' as keyof Booking,
@@ -122,24 +165,132 @@ export const BookingList: React.FC = () => {
     }
   ];
 
+  const handleDelete = async (booking: Booking) => {
+    const confirmed = window.confirm(
+      `Delete booking #${booking.id.slice(-6)} for ${booking.customerName}? This action cannot be undone.`
+    );
+    if (!confirmed) return;
+    setDeletingId(booking.id);
+    try {
+      await deleteBooking(booking.id);
+      showSuccess('Booking deleted successfully');
+    } catch (err) {
+      console.error(err);
+      showError('Failed to delete booking. Please try again.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const buildClonePayload = (booking: Booking): Omit<Booking, "id" | "createdAt"> => ({
+    customerId: booking.customerId,
+    customerName: booking.customerName,
+    customerPhone: booking.customerPhone,
+    bookingSource: booking.bookingSource,
+    companyId: booking.companyId,
+    pickupLocation: booking.pickupLocation,
+    dropLocation: booking.dropLocation,
+    journeyType: booking.journeyType,
+    cityOfWork: booking.cityOfWork,
+    startDate: booking.startDate,
+    endDate: booking.endDate,
+    vehicleId: booking.vehicleId,
+    driverId: booking.driverId,
+    tariffRate: booking.tariffRate,
+    totalAmount: booking.totalAmount,
+    advanceReceived: booking.advanceReceived,
+    balance: booking.totalAmount - booking.advanceReceived,
+    advanceReason: booking.advanceReason,
+    status: "booked",
+    expenses: [],
+    payments: [],
+    dutySlips: [],
+    finalPaid: 0,
+    billed: false,
+    dutySlipSubmitted: false,
+    dutySlipSubmittedToCompany: false,
+    statusHistory: [
+      {
+        id: Math.random().toString(36).slice(2),
+        status: "booked",
+        timestamp: new Date().toISOString(),
+        changedBy: user?.name || user?.email || "Cloned",
+      },
+    ],
+  });
+
+  const handleClone = async (booking: Booking) => {
+    setCloningId(booking.id);
+    try {
+      await addBooking(buildClonePayload(booking));
+      showSuccess("Booking cloned");
+    } catch (err) {
+      console.error(err);
+      showError("Failed to clone booking");
+    } finally {
+      setCloningId(null);
+    }
+  };
+
   const actions = (booking: Booking) => (
-    <div className="flex space-x-2">
+    <div className="flex items-center space-x-2">
       <button
-        onClick={() => navigate(`/bookings/${booking.id}`)}
+        onClick={(e) => {
+          e.stopPropagation();
+          navigate(`/bookings/${booking.id}`);
+        }}
         className="text-amber-600 hover:text-amber-800"
         aria-label="View booking"
       >
-  <Icon name="eye" className="h-4 w-4" />
+        <Icon name="eye" className="h-4 w-4" />
       </button>
-      <span className="text-gray-300">|</span>
       {hasRole(['admin', 'dispatcher']) && (
-        <button
-          onClick={() => navigate(`/bookings/${booking.id}/edit`)}
-          className="text-amber-600 hover:text-amber-800"
-          aria-label="Edit booking"
-        >
-          <Icon name="edit" className="h-4 w-4" />
-        </button>
+        <>
+          <span className="text-gray-300">|</span>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/bookings/${booking.id}/edit`);
+            }}
+            className="text-amber-600 hover:text-amber-800"
+            aria-label="Edit booking"
+          >
+            <Icon name="edit" className="h-4 w-4" />
+          </button>
+          <span className="text-gray-300">|</span>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleClone(booking);
+            }}
+            className="text-amber-600 hover:text-amber-800 disabled:text-gray-400"
+            aria-label="Clone booking"
+            title="Clone booking"
+            disabled={cloningId === booking.id}
+          >
+            {cloningId === booking.id ? (
+              <Icon name="spinner" className="h-4 w-4" spin />
+            ) : (
+              <Icon name="copy" className="h-4 w-4" />
+            )}
+          </button>
+          <span className="text-gray-300">|</span>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDelete(booking);
+            }}
+            className="text-amber-600 hover:text-amber-800 disabled:text-gray-400"
+            aria-label="Delete booking"
+            disabled={deletingId === booking.id}
+          >
+            <Icon
+              name={deletingId === booking.id ? 'spinner' : 'delete'}
+              className="h-4 w-4"
+              spin={deletingId === booking.id}
+            />
+          </button>
+        </>
       )}
     </div>
   );

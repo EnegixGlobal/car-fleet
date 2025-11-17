@@ -96,7 +96,7 @@ export const CreateVehicle: React.FC = () => {
                 label="Vehicle Category"
                 error={errors.categoryId?.message}
                 placeholder="Select category"
-                options={vehicleCategories.map(c => ({ value: c.id, label: c.name }))}
+                options={vehicleCategories.map(c => ({ value: c.id, label: c.name + (c.description ? ` - ${c.description}` : '') }))}
               />
 
               <Select

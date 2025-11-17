@@ -30,7 +30,8 @@ import {
   faExclamationTriangle,
   faSpinner,
   faBuilding,
-  faTrash
+  faTrash,
+  faCopy
 } from '@fortawesome/free-solid-svg-icons';
 
 // Mapping from semantic name to actual icon definition
@@ -64,7 +65,8 @@ const iconMap = {
   warning: faExclamationTriangle,
   spinner: faSpinner,
   building: faBuilding,
-  delete: faTrash
+  delete: faTrash,
+  copy: faCopy
 };
 
 export type IconName = keyof typeof iconMap;

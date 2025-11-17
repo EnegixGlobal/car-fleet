@@ -228,7 +228,9 @@ export const VehicleServicingPage: React.FC = () => {
         <CardContent>
           {vehiclesLoading ? <div className="text-sm text-gray-500">Loading vehicles...</div> : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {vehicles.map(v => {
+              {vehicles
+                .filter((v) => v.owner === "owned")
+                .map(v => {
                 const isActive = selectedVehicleId===v.id;
                 const handleClick = () => {
                   // toggle collapse if same vehicle clicked
