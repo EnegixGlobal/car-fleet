@@ -554,6 +554,9 @@ export const BookingDetails: React.FC = () => {
                     {vehicle && (
                       <p className="text-xs text-gray-500 capitalize">
                         {vehicle.category}
+                        {vehicle.categoryDescription
+                          ? ` - ${vehicle.categoryDescription}`
+                          : ""}
                       </p>
                     )}
                   </div>

@@ -174,7 +174,7 @@ export const EditBooking: React.FC = () => {
     .filter(v => v.status === 'active')
     .map(vehicle => ({
       value: vehicle.id,
-      label: `${vehicle.registrationNumber} (${vehicle.category})`
+      label: `${vehicle.registrationNumber} (${vehicle.category}) ${vehicle.categoryDescription ? ` - ${vehicle.categoryDescription}` : ''}`
     }));
   const companyOptions = companies.map(c => ({ value: c.id, label: c.name }));
 

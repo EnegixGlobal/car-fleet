@@ -34,7 +34,7 @@ interface AppContextType {
   bookings: Booking[];
   addBooking: (booking: Omit<Booking, "id" | "createdAt">) => void;
   updateBooking: (id: string, updates: Partial<Booking>) => void;
-  deleteBooking: (id: string) => void;
+  deleteBooking: (id: string) => Promise<void>;
   updateBookingStatus: (
     id: string,
     status: Booking["status"],
@@ -435,11 +435,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
   };
 
   const deleteBooking = async (id: string) => {
-    setBookings((prev) => prev.filter((b) => b.id !== id));
+    let previous: Booking[] = [];
+    setBookings((prev) => {
+      previous = prev;
+      return prev.filter((b) => b.id !== id);
+    });
     try {
-      /* await bookingAPI.delete(id); */
+      await bookingAPI.delete(id);
     } catch (err) {
       console.error("Delete booking failed", err);
+      setBookings(previous);
+      throw err;
     }
   };
 

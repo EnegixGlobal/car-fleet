@@ -96,7 +96,15 @@ export const EditVehicle: React.FC = () => {
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Input {...register('registrationNumber')} label="Registration Number" error={errors.registrationNumber?.message} />
-              <Select {...register('categoryId')} label="Category" error={errors.categoryId?.message} options={vehicleCategories.map(c => ({ value: c.id, label: c.name }))} />
+              <Select
+                {...register('categoryId')}
+                label="Category"
+                error={errors.categoryId?.message}
+                options={vehicleCategories.map(c => ({
+                  value: c.id,
+                  label: c.description ? `${c.name} - ${c.description}` : c.name
+                }))}
+              />
               <Select {...register('owner')} label="Ownership" error={errors.owner?.message} options={[{value:'owned',label:'Owned'},{value:'rented',label:'Rented'}]} />
               <Select {...register('status')} label="Status" error={errors.status?.message} options={[{value:'active',label:'Active'},{value:'maintenance',label:'Maintenance'},{value:'inactive',label:'Inactive'}]} />
             </div>

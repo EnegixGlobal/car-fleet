@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
-import { vehicleServicingAPI, VehicleServicingDTO } from '../../services/api';
+import { vehicleServicingAPI, VehicleServicingDTO, vehicleCategoryAPI, VehicleCategoryDTO } from '../../services/api';
 import { Card, CardContent, CardHeader } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Icon } from '../../components/ui/Icon';
@@ -13,6 +13,7 @@ export const VehicleDetails: React.FC = () => {
   const vehicle = vehicles.find(v => v.id === id);
   const [servicing, setServicing] = useState<VehicleServicingDTO | null>(null);
   const [servicingLoading, setServicingLoading] = useState(false);
+  const [vehicleCategories, setVehicleCategories] = useState<VehicleCategoryDTO[]>([]);
 
   useEffect(() => {
     if (vehicle?.id) {
@@ -23,6 +24,17 @@ export const VehicleDetails: React.FC = () => {
         .finally(() => setServicingLoading(false));
     }
   }, [vehicle?.id]);
+
+  useEffect(() => {
+    vehicleCategoryAPI
+      .list()
+      .then(setVehicleCategories)
+      .catch(() => setVehicleCategories([]));
+  }, []);
+
+  const categoryInfo = vehicle
+    ? vehicleCategories.find((c) => c.id === vehicle.categoryId)
+    : undefined;
 
   if (!vehicle) {
     return (
@@ -35,7 +47,7 @@ export const VehicleDetails: React.FC = () => {
 
   const relatedBookings = bookings.filter(b => b.vehicleId === vehicle.id);
   const totalRevenue = relatedBookings.reduce((sum, b) => sum + b.totalAmount, 0);
-  const totalExpenses = relatedBookings.reduce((sum, b) => sum + b.expenses.reduce((eSum, e)=> eSum + e.amount, 0), 0);
+  const totalExpenses = relatedBookings.reduce((sum, b) => sum + b.expenses.reduce((eSum, e) => eSum + e.amount, 0), 0);
   const completedTrips = relatedBookings.filter(b => b.status === 'completed').length;
 
   return (
@@ -64,12 +76,22 @@ export const VehicleDetails: React.FC = () => {
               <img src={vehicle.photo} alt="Vehicle" className="max-h-56 rounded border" />
             </div>
           )}
-          <div><span className="font-medium">Category:</span> {vehicle.category}</div>
+          <div>
+            <span className="font-medium">Category:</span>{' '}
+
+            <span>
+              {vehicle.category || categoryInfo?.name }{' - '}
+              {categoryInfo?.description && (
+                <span className="text-gray-600 text-sm">{categoryInfo.description}</span>
+              )}
+            </span>
+          </div>
+
           <div><span className="font-medium">Ownership:</span> {vehicle.owner}</div>
           <div><span className="font-medium">Status:</span> {vehicle.status}</div>
           {vehicle.mileageTrips !== undefined && <div><span className="font-medium">Trips:</span> {vehicle.mileageTrips}</div>}
           {vehicle.mileageKm !== undefined && <div><span className="font-medium">Mileage (km):</span> {vehicle.mileageKm?.toLocaleString()}</div>}
-          <div><span className="font-medium">Created:</span> {vehicle.createdAt?.slice(0,10)}</div>
+          <div><span className="font-medium">Created:</span> {vehicle.createdAt?.slice(0, 10)}</div>
           {vehicle.document && (
             <div className="md:col-span-2">
               <span className="font-medium">Document:</span>{' '}
@@ -108,7 +130,7 @@ export const VehicleDetails: React.FC = () => {
             <p className="text-xl font-bold text-red-600">₹{totalExpenses.toLocaleString()}</p>
             <p className="text-xs text-gray-500">Trip Expenses</p>
           </div>
-            <div>
+          <div>
             <p className="text-xl font-bold text-amber-700">{completedTrips}</p>
             <p className="text-xs text-gray-500">Completed</p>
           </div>
@@ -136,8 +158,8 @@ export const VehicleDetails: React.FC = () => {
                   {servicing.oilChanges.length > 0 ? (
                     <ul className="space-y-1">
                       <li className="flex justify-between"><span className="text-gray-600">Total:</span> <span>{servicing.oilChanges.length}</span></li>
-                      <li className="flex justify-between"><span className="text-gray-600">Last Km:</span> <span>{servicing.oilChanges[servicing.oilChanges.length-1].kilometers}</span></li>
-                      <li className="flex justify-between"><span className="text-gray-600">Last Price:</span> <span>₹{servicing.oilChanges[servicing.oilChanges.length-1].price}</span></li>
+                      <li className="flex justify-between"><span className="text-gray-600">Last Km:</span> <span>{servicing.oilChanges[servicing.oilChanges.length - 1].kilometers}</span></li>
+                      <li className="flex justify-between"><span className="text-gray-600">Last Price:</span> <span>₹{servicing.oilChanges[servicing.oilChanges.length - 1].price}</span></li>
                     </ul>
                   ) : <p className="text-gray-500 text-xs">None</p>}
                 </div>
@@ -146,8 +168,8 @@ export const VehicleDetails: React.FC = () => {
                   {servicing.partsReplacements.length > 0 ? (
                     <ul className="space-y-1">
                       <li className="flex justify-between"><span className="text-gray-600">Items:</span> <span>{servicing.partsReplacements.length}</span></li>
-                      <li className="flex justify-between"><span className="text-gray-600">Total:</span> <span>₹{servicing.partsReplacements.reduce((s,p)=>s+p.price,0).toLocaleString()}</span></li>
-                      <li className="flex justify-between break-all"><span className="text-gray-600">Last:</span> <span>{servicing.partsReplacements[servicing.partsReplacements.length-1].part}</span></li>
+                      <li className="flex justify-between"><span className="text-gray-600">Total:</span> <span>₹{servicing.partsReplacements.reduce((s, p) => s + p.price, 0).toLocaleString()}</span></li>
+                      <li className="flex justify-between break-all"><span className="text-gray-600">Last:</span> <span>{servicing.partsReplacements[servicing.partsReplacements.length - 1].part}</span></li>
                     </ul>
                   ) : <p className="text-gray-500 text-xs">None</p>}
                 </div>
@@ -156,8 +178,8 @@ export const VehicleDetails: React.FC = () => {
                   {servicing.tyres.length > 0 ? (
                     <ul className="space-y-1">
                       <li className="flex justify-between"><span className="text-gray-600">Entries:</span> <span>{servicing.tyres.length}</span></li>
-                      <li className="flex justify-between"><span className="text-gray-600">Total:</span> <span>₹{servicing.tyres.reduce((s,t)=>s+t.price,0).toLocaleString()}</span></li>
-                      <li className="flex justify-between break-all"><span className="text-gray-600">Last:</span> <span>{servicing.tyres[servicing.tyres.length-1].details}</span></li>
+                      <li className="flex justify-between"><span className="text-gray-600">Total:</span> <span>₹{servicing.tyres.reduce((s, t) => s + t.price, 0).toLocaleString()}</span></li>
+                      <li className="flex justify-between break-all"><span className="text-gray-600">Last:</span> <span>{servicing.tyres[servicing.tyres.length - 1].details}</span></li>
                     </ul>
                   ) : <p className="text-gray-500 text-xs">None</p>}
                 </div>
@@ -166,8 +188,8 @@ export const VehicleDetails: React.FC = () => {
                   {servicing.installments.length > 0 ? (
                     <ul className="space-y-1">
                       <li className="flex justify-between"><span className="text-gray-600">Count:</span> <span>{servicing.installments.length}</span></li>
-                      <li className="flex justify-between"><span className="text-gray-600">Total:</span> <span>₹{servicing.installments.reduce((s,a)=>s+a.amount,0).toLocaleString()}</span></li>
-                      <li className="flex justify-between break-all"><span className="text-gray-600">Last:</span> <span>{servicing.installments[servicing.installments.length-1].amount}</span></li>
+                      <li className="flex justify-between"><span className="text-gray-600">Total:</span> <span>₹{servicing.installments.reduce((s, a) => s + a.amount, 0).toLocaleString()}</span></li>
+                      <li className="flex justify-between break-all"><span className="text-gray-600">Last:</span> <span>{servicing.installments[servicing.installments.length - 1].amount}</span></li>
                     </ul>
                   ) : <p className="text-gray-500 text-xs">None</p>}
                 </div>
@@ -176,23 +198,23 @@ export const VehicleDetails: React.FC = () => {
                   {servicing.insurances.length > 0 ? (
                     <ul className="space-y-1">
                       <li className="flex justify-between"><span className="text-gray-600">Policies:</span> <span>{servicing.insurances.length}</span></li>
-                      <li className="flex justify-between"><span className="text-gray-600">Total:</span> <span>₹{servicing.insurances.reduce((s,i)=>s+i.cost,0).toLocaleString()}</span></li>
-                      <li className="flex justify-between"><span className="text-gray-600">Last:</span> <span>₹{servicing.insurances[servicing.insurances.length-1].cost}</span></li>
+                      <li className="flex justify-between"><span className="text-gray-600">Total:</span> <span>₹{servicing.insurances.reduce((s, i) => s + i.cost, 0).toLocaleString()}</span></li>
+                      <li className="flex justify-between"><span className="text-gray-600">Last:</span> <span>₹{servicing.insurances[servicing.insurances.length - 1].cost}</span></li>
                     </ul>
                   ) : <p className="text-gray-500 text-xs">None</p>}
                 </div>
                 <div>
                   <p className="font-medium mb-1">Legal Papers</p>
                   {servicing.legalPapers.length > 0 ? (() => {
-                    const total = servicing.legalPapers.reduce((s,l)=>s+l.cost,0);
+                    const total = servicing.legalPapers.reduce((s, l) => s + l.cost, 0);
                     const nextExpiry = servicing.legalPapers
-                      .filter(l=>l.expiryDate)
-                      .sort((a,b)=> (a.expiryDate! > b.expiryDate! ? 1 : -1))[0]?.expiryDate;
+                      .filter(l => l.expiryDate)
+                      .sort((a, b) => (a.expiryDate! > b.expiryDate! ? 1 : -1))[0]?.expiryDate;
                     return (
                       <ul className="space-y-1">
                         <li className="flex justify-between"><span className="text-gray-600">Entries:</span> <span>{servicing.legalPapers.length}</span></li>
                         <li className="flex justify-between"><span className="text-gray-600">Total:</span> <span>₹{total.toLocaleString()}</span></li>
-                        <li className="flex justify-between"><span className="text-gray-600">Next Exp:</span> <span>{nextExpiry ? nextExpiry.slice(0,10) : '—'}</span></li>
+                        <li className="flex justify-between"><span className="text-gray-600">Next Exp:</span> <span>{nextExpiry ? nextExpiry.slice(0, 10) : '—'}</span></li>
                       </ul>
                     );
                   })() : <p className="text-gray-500 text-xs">None</p>}
@@ -215,11 +237,11 @@ export const VehicleDetails: React.FC = () => {
             <div key={b.id} className="flex items-center justify-between p-2 border rounded-md">
               <div>
                 <p className="font-medium">{b.pickupLocation} → {b.dropLocation}</p>
-                <p className="text-xs text-gray-500">{b.startDate.slice(0,10)} • {b.status}</p>
+                <p className="text-xs text-gray-500">{b.startDate.slice(0, 10)} • {b.status}</p>
               </div>
               <div className="text-right">
                 <p className="font-medium text-green-600">₹{b.totalAmount.toLocaleString()}</p>
-                <p className="text-xs text-red-600">₹{b.expenses.reduce((s,e)=>s+e.amount,0).toLocaleString()} exp</p>
+                <p className="text-xs text-red-600">₹{b.expenses.reduce((s, e) => s + e.amount, 0).toLocaleString()} exp</p>
               </div>
             </div>
           ))}

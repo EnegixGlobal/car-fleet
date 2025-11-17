@@ -42,6 +42,7 @@ export interface Vehicle {
   registrationNumber: string;
   // Category is now dynamic, managed in DB; keep legacy values but allow any string
   category: string;
+  categoryDescription?: string;
   categoryId?: string;
   owner: "owned" | "rented";
   insuranceExpiry: string;

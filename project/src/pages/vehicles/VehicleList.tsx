@@ -8,15 +8,18 @@ import { Icon } from '../../components/ui/Icon';
 import { format, parseISO, isBefore, addDays } from 'date-fns';
 import { Vehicle } from '../../types';
 import { vehicleCategoryAPI, VehicleCategoryDTO } from '../../services/api';
+import { useToast } from '../../hooks/useToast';
 
 export const VehicleList: React.FC = () => {
   const navigate = useNavigate();
-  const { vehicles, vehiclesLoading } = useApp();
+  const { vehicles, vehiclesLoading, deleteVehicle } = useApp();
+  const { showSuccess, showError } = useToast();
   const [vehicleCategories, setVehicleCategories] = useState<VehicleCategoryDTO[]>([]);
   useEffect(() => { vehicleCategoryAPI.list().then(setVehicleCategories).catch(()=>setVehicleCategories([])); }, []);
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'maintenance' | 'inactive'>('all');
   const [ownerFilter, setOwnerFilter] = useState<'all' | 'owned' | 'rented'>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   let filteredVehicles = vehicles;
   if (statusFilter !== 'all') filteredVehicles = filteredVehicles.filter(v => v.status === statusFilter);
@@ -90,9 +93,26 @@ export const VehicleList: React.FC = () => {
     {
       key: 'category' as keyof Vehicle,
       header: 'Category',
-      render: (vehicle: Vehicle) => (
-  <span className="capitalize">{vehicle.category || vehicleCategories.find((c: { id: string; name: string }) => c.id === vehicle.categoryId)?.name}</span>
-      )
+      render: (vehicle: Vehicle) => {
+        const category = vehicleCategories.find(
+          (c: { id: string; name: string; description?: string }) =>
+            c.id === vehicle.categoryId
+        );
+    
+        return (
+          <div className="flex flex-col">
+            <span className="text-sm capitalize">
+              {vehicle.category || category?.name}
+            </span>
+    
+            {category?.description && (
+              <span className="text-xs text-gray-500 leading-tight">
+                {category.description}
+              </span>
+            )}
+          </div>
+        );
+      }
     },
     {
       key: 'owner' as keyof Vehicle,
@@ -151,22 +171,50 @@ export const VehicleList: React.FC = () => {
     }
   ];
 
+  const handleDelete = async (vehicle: Vehicle) => {
+    const confirmed = window.confirm(`Delete vehicle ${vehicle.registrationNumber}?`);
+    if (!confirmed) return;
+    setDeletingId(vehicle.id);
+    try {
+      await deleteVehicle(vehicle.id);
+      showSuccess('Vehicle deleted');
+    } catch (err) {
+      console.error(err);
+      showError('Failed to delete vehicle');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   const actions = (vehicle: Vehicle) => (
-    <div className="flex space-x-2">
+    <div className="flex items-center space-x-2">
       <button
-  onClick={(e) => { e.stopPropagation(); navigate(`/vehicles/${vehicle.id}`); }}
+        onClick={(e) => { e.stopPropagation(); navigate(`/vehicles/${vehicle.id}`); }}
         className="text-amber-600 hover:text-amber-800"
         aria-label="View vehicle"
       >
-  <Icon name="eye" className="h-4 w-4" />
+        <Icon name="eye" className="h-4 w-4" />
       </button>
       <span className="text-gray-300">|</span>
       <button
-  onClick={(e) => { e.stopPropagation(); navigate(`/vehicles/${vehicle.id}/edit`); }}
+        onClick={(e) => { e.stopPropagation(); navigate(`/vehicles/${vehicle.id}/edit`); }}
         className="text-amber-600 hover:text-amber-800"
         aria-label="Edit vehicle"
       >
-  <Icon name="edit" className="h-4 w-4" />
+        <Icon name="edit" className="h-4 w-4" />
+      </button>
+      <span className="text-gray-300">|</span>
+      <button
+        onClick={(e) => { e.stopPropagation(); handleDelete(vehicle); }}
+        className="text-amber-600 hover:text-amber-800 disabled:text-gray-400"
+        aria-label="Delete vehicle"
+        disabled={deletingId === vehicle.id}
+      >
+        <Icon
+          name={deletingId === vehicle.id ? 'spinner' : 'delete'}
+          className="h-4 w-4"
+          spin={deletingId === vehicle.id}
+        />
       </button>
     </div>
   );

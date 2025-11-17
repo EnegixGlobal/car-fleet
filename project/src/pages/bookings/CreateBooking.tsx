@@ -11,7 +11,7 @@ import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { Icon } from '../../components/ui/Icon';
 import { Modal } from '../../components/ui/Modal';
-import { cityAPI } from '../../services/api';
+import { cityAPI, vehicleCategoryAPI, VehicleCategoryDTO } from '../../services/api';
 
 const bookingSchema = z.object({
   customerName: z.string().min(1, 'Customer name is required'),
@@ -37,7 +37,15 @@ type BookingFormData = z.infer<typeof bookingSchema>;
 export const CreateBooking: React.FC = () => {
   const navigate = useNavigate();
   const { addBooking, drivers, vehicles, companies, customers } = useApp();
+  console.log(vehicles);
   const [cities, setCities] = React.useState<string[]>([]);
+  const [vehicleCategories, setVehicleCategories] = React.useState<VehicleCategoryDTO[]>([]);
+  React.useEffect(() => {
+    vehicleCategoryAPI
+      .list()
+      .then(setVehicleCategories)
+      .catch(() => setVehicleCategories([]));
+  }, []);
 
   const sanitizeCities = React.useCallback((raw: string[]): string[] => {
     const cleaned = raw
@@ -139,10 +147,15 @@ export const CreateBooking: React.FC = () => {
 
   const vehicleOptions = vehicles
     .filter(v => v.status === 'active')
-    .map(vehicle => ({
-      value: vehicle.id,
-      label: `${vehicle.registrationNumber} (${vehicle.category})`
-    }));
+    .map(vehicle => {
+      const categoryInfo = vehicleCategories.find((c) => c.id === vehicle.categoryId);
+      const categoryLabel = categoryInfo?.name || vehicle.category || 'Uncategorized';
+      const descriptionLabel = categoryInfo?.description ? ` - ${categoryInfo.description}` : '';
+      return {
+        value: vehicle.id,
+        label: `${vehicle.registrationNumber} (${categoryLabel})${descriptionLabel}`,
+      };
+    });
 
   const companyOptions = companies.map(company => ({
     value: company.id,
