@@ -6,6 +6,7 @@ import { Input } from "../../components/ui/Input";
 import { Select } from "../../components/ui/Select";
 import { DataTable } from "../../components/common/DataTable";
 import { Icon } from "../../components/ui/Icon";
+import { Modal } from "../../components/ui/Modal";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import type { Driver, Vehicle, DriverFinancePayment } from "../../types";
 import { financeAPI } from "../../services/api";
@@ -59,6 +60,7 @@ export const DriverReport: React.FC = () => {
   const [selectedBookingId, setSelectedBookingId] = React.useState<string>("");
   const [payAmount, setPayAmount] = React.useState<number>(0);
   const [processingPayment, setProcessingPayment] = React.useState(false);
+  const [viewingRow, setViewingRow] = React.useState<ReportRow | null>(null);
 
   const driversOptions = drivers.map((d) => ({ value: d.id, label: d.name }));
 
@@ -951,9 +953,7 @@ export const DriverReport: React.FC = () => {
             key: "driverReceived",
             header: "Driver Received",
             render: (r) =>
-              `₹${
-                Number(r.driverReceived)
-              .toLocaleString(undefined, {
+              `₹${Number(r.driverReceived).toLocaleString(undefined, {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
               })}`,
@@ -977,7 +977,102 @@ export const DriverReport: React.FC = () => {
         defaultSortKey={"bookingDate"}
         defaultSortDirection="desc"
         searchPlaceholder="Search report..."
+        onRowClick={setViewingRow}
       />
+      <Modal
+        isOpen={!!viewingRow}
+        onClose={() => setViewingRow(null)}
+        title="Trip details"
+        size="lg"
+        closeOnOverlayClick={false}
+      >
+        {viewingRow && (
+          <div className="space-y-4 text-sm text-gray-700">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <p className="text-xs text-gray-500">S.No</p>
+                <p className="font-semibold text-gray-900">
+                  {viewingRow.sNo}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Booking Date</p>
+                <p className="font-semibold text-gray-900">
+                  {new Date(viewingRow.bookingDate).toLocaleDateString()}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Created Date</p>
+                <p className="font-semibold text-gray-900">
+                  {new Date(viewingRow.createdDate).toLocaleString()}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Customer</p>
+                <p className="font-semibold text-gray-900">
+                  {viewingRow.customerName}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Driver</p>
+                <p className="font-semibold text-gray-900">
+                  {viewingRow.driverName}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Route</p>
+                <p className="font-semibold text-gray-900">
+                  {viewingRow.route}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Vehicle</p>
+                <p className="font-semibold text-gray-900">
+                  {viewingRow.vehicle}
+                </p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-gray-100 pt-4">
+              <div>
+                <p className="text-xs text-gray-500">Booking Amount</p>
+                <p className="font-semibold text-gray-900">
+                  ₹{formatMoney(viewingRow.bookingAmount)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Advance to Driver</p>
+                <p className="font-semibold text-gray-900">
+                  ₹{formatMoney(viewingRow.advanceToDriver)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Driver Expenses</p>
+                <p className="font-semibold text-gray-900">
+                  ₹{formatMoney(viewingRow.driverExpenses)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">On duty Paid</p>
+                <p className="font-semibold text-gray-900">
+                  ₹{formatMoney(viewingRow.onDutyPaid)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Driver Received</p>
+                <p className="font-semibold text-gray-900">
+                  ₹{formatMoney(viewingRow.driverReceived)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Amount Payable</p>
+                <p className="font-semibold text-gray-900">
+                  ₹{formatMoney(viewingRow.amountPayable)}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };

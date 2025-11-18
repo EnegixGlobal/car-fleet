@@ -9,14 +9,16 @@ interface ModalProps {
   title: string;
   children: React.ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl';
+  closeOnOverlayClick?: boolean;
 }
 
-export const Modal: React.FC<ModalProps> = ({ 
-  isOpen, 
-  onClose, 
-  title, 
-  children, 
-  size = 'md' 
+export const Modal: React.FC<ModalProps> = ({
+  isOpen,
+  onClose,
+  title,
+  children,
+  size = 'md',
+  closeOnOverlayClick = true,
 }) => {
   const sizeClasses = {
     sm: 'max-w-md',
@@ -27,7 +29,11 @@ export const Modal: React.FC<ModalProps> = ({
 
   return (
     <Transition appear show={isOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-10" onClose={onClose}>
+      <Dialog
+        as="div"
+        className="relative z-10"
+        onClose={closeOnOverlayClick ? onClose : () => undefined}
+      >
         <Transition.Child
           as={Fragment}
           enter="ease-out duration-300"

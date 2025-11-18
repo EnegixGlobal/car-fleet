@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
+import { useToast } from '../../hooks/useToast';
 import { DataTable } from '../../components/common/DataTable';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
@@ -10,9 +11,11 @@ import { Driver } from '../../types';
 
 export const DriverList: React.FC = () => {
   const navigate = useNavigate();
-  const { drivers } = useApp();
+  const { drivers, deleteDriver } = useApp();
+  const { showSuccess, showError } = useToast();
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [modeFilter, setModeFilter] = useState<'all' | 'per-trip' | 'daily' | 'monthly' | 'fuel-basis'>('all');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   let filteredDrivers = drivers;
   if (statusFilter !== 'all') filteredDrivers = filteredDrivers.filter(d => d.status === statusFilter);
@@ -96,22 +99,55 @@ export const DriverList: React.FC = () => {
     }
   ];
 
+  const handleDelete = async (driver: Driver) => {
+    const confirmed = window.confirm(
+      `Delete driver ${driver.name}? This action cannot be undone.`
+    );
+    if (!confirmed) return;
+    setDeletingId(driver.id);
+    try {
+      await deleteDriver(driver.id);
+      showSuccess('Driver deleted successfully');
+    } catch (err) {
+      console.error(err);
+      showError('Failed to delete driver. Please try again.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   const actions = (driver: Driver) => (
     <div className="flex space-x-2">
       <button
-  onClick={(e) => { e.stopPropagation(); navigate(`/drivers/${driver.id}`); }}
+        onClick={(e) => { e.stopPropagation(); navigate(`/drivers/${driver.id}`); }}
         className="text-amber-600 hover:text-amber-800"
         aria-label="View driver"
       >
-  <Icon name="eye" className="h-4 w-4" />
+        <Icon name="eye" className="h-4 w-4" />
       </button>
       <span className="text-gray-300">|</span>
       <button
-  onClick={(e) => { e.stopPropagation(); navigate(`/drivers/${driver.id}/edit`); }}
+        onClick={(e) => { e.stopPropagation(); navigate(`/drivers/${driver.id}/edit`); }}
         className="text-amber-600 hover:text-amber-800"
         aria-label="Edit driver"
       >
-  <Icon name="edit" className="h-4 w-4" />
+        <Icon name="edit" className="h-4 w-4" />
+      </button>
+      <span className="text-gray-300">|</span>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          handleDelete(driver);
+        }}
+        className="text-amber-600 hover:text-amber-800 disabled:text-gray-400"
+        aria-label="Delete driver"
+        disabled={deletingId === driver.id}
+      >
+        <Icon
+          name={deletingId === driver.id ? 'spinner' : 'delete'}
+          className="h-4 w-4"
+          spin={deletingId === driver.id}
+        />
       </button>
     </div>
   );

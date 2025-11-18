@@ -5,6 +5,7 @@ import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { DataTable } from '../../components/common/DataTable';
 import { Icon } from '../../components/ui/Icon';
+import { Modal } from "../../components/ui/Modal";
 import { useApp } from '../../context/AppContext';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 
@@ -40,6 +41,7 @@ export const BookingReport: React.FC = () => {
   const [month, setMonth] = React.useState('');
   const [year, setYear] = React.useState('');
   const [rows, setRows] = React.useState<ReportRow[]>([]);
+  const [viewingRow, setViewingRow] = React.useState<ReportRow | null>(null);
 
   const driversOptions = drivers.map(d => ({ value: d.id, label: d.name }));
   const vehicleOptions = vehicles.map(v => ({ value: v.id, label: v.registrationNumber }));
@@ -107,20 +109,6 @@ export const BookingReport: React.FC = () => {
         0
       );
       const advanceToDriver = (b.advanceReceived || 0) + hasPaymentAmount;
-
-      const amountPayable = (() => {
-        if (totalOilAmount === 0) {
-          if (hasPaymentAmount === baseDriverExpenses) return 0;
-          if (hasPaymentAmount < baseDriverExpenses && hasPaymentAmount > 0)
-            return baseDriverExpenses - hasPaymentAmount;
-          return baseDriverExpenses;
-        } else {
-          if (hasPaymentAmount === 0) return baseDriverExpenses + totalOilAmount;
-          if (hasPaymentAmount < baseDriverExpenses)
-            return totalOilAmount + (baseDriverExpenses - hasPaymentAmount);
-          return totalOilAmount;
-        }
-      })();
 
       // Compute how much driver actually received at the end
       const driverReceivedBase = (b.advanceReceived || 0) + hasPaymentAmount;
@@ -393,7 +381,100 @@ export const BookingReport: React.FC = () => {
         defaultSortKey={"bookingDate"}
         defaultSortDirection="desc"
         searchPlaceholder="Search bookings..."
+        onRowClick={setViewingRow}
       />
+      <Modal
+        isOpen={!!viewingRow}
+        onClose={() => setViewingRow(null)}
+        title="Booking details"
+        size="lg"
+        closeOnOverlayClick={false}
+      >
+        {viewingRow && (
+          <div className="space-y-4 text-sm text-gray-700">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <p className="text-xs text-gray-500">S.No</p>
+                <p className="font-semibold text-gray-900">{viewingRow.sNo}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Booking Date</p>
+                <p className="font-semibold text-gray-900">
+                  {new Date(viewingRow.bookingDate).toLocaleDateString()}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Created Date</p>
+                <p className="font-semibold text-gray-900">
+                  {new Date(viewingRow.createdAt).toLocaleString()}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Customer</p>
+                <p className="font-semibold text-gray-900">
+                  {viewingRow.customerName}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Driver</p>
+                <p className="font-semibold text-gray-900">
+                  {viewingRow.driverName}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Vehicle</p>
+                <p className="font-semibold text-gray-900">
+                  {viewingRow.vehicle}
+                </p>
+              </div>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">Route</p>
+              <p className="font-semibold text-gray-900">{viewingRow.route}</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-gray-100 pt-4">
+              <div>
+                <p className="text-xs text-gray-500">Booking Amount</p>
+                <p className="font-semibold text-gray-900">
+                  ₹{viewingRow.bookingAmount.toLocaleString()}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Advance Received</p>
+                <p className="font-semibold text-gray-900">
+                  ₹{viewingRow.advanceReceived.toLocaleString()}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Driver Expenses</p>
+                <p className="font-semibold text-gray-900">
+                  ₹{viewingRow.expenses.toLocaleString()}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Amount Paid</p>
+                <p className="font-semibold text-gray-900">
+                  ₹{viewingRow.balance.toLocaleString()}
+                </p>
+              </div>
+              {/* {typeof viewingRow.paymentsAmount === "number" && (
+                <div>
+                  <p className="text-xs text-gray-500">Payments (Fuel/Oil)</p>
+                  <p className="font-semibold text-gray-900">
+                    ₹{viewingRow.paymentsAmount.toLocaleString()}
+                  </p>
+                </div>
+              )} */}
+              <div>
+                <p className="text-xs text-gray-500">Status</p>
+                <p className="font-semibold text-gray-900">
+                  {viewingRow.status}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };

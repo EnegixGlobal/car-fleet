@@ -6,6 +6,7 @@ import { Input } from "../../components/ui/Input";
 import { Select } from "../../components/ui/Select";
 import { DataTable } from "../../components/common/DataTable";
 import { Icon } from "../../components/ui/Icon";
+import { Modal } from "../../components/ui/Modal";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import type {
   Driver,
@@ -33,7 +34,7 @@ interface ReportRow {
 }
 
 export const CompanyReport: React.FC = () => {
-  const { bookings, drivers, vehicles, payments, companies } = useApp();
+  const { bookings, drivers, vehicles, companies } = useApp();
   const [from, setFrom] = React.useState(
     format(startOfMonth(new Date()), "yyyy-MM-dd")
   );
@@ -44,6 +45,7 @@ export const CompanyReport: React.FC = () => {
   const [month, setMonth] = React.useState<string>("");
   const [year, setYear] = React.useState<string>("");
   const [rows, setRows] = React.useState<ReportRow[]>([]);
+  const [viewingRow, setViewingRow] = React.useState<ReportRow | null>(null);
 
   const companiesOptions = companies.map((c) => ({
     value: c.id,
@@ -485,11 +487,11 @@ export const CompanyReport: React.FC = () => {
             header: "Driver Received",
             render: (r) => `₹${r.driverReceived.toLocaleString()}`,
           },
-          // {
-          //   key: "amountPayable",
-          //   header: "Amount Payable",
-          //   render: (r) => `₹${r.amountPayable.toLocaleString()}`,
-          // },
+          {
+            key: "amountPayable",
+            header: "Amount Payable",
+            render: (r) => `₹${r.amountPayable.toLocaleString()}`,
+          },
           { key: "vehicle", header: "Vehicle" },
           {
             key: "createdDate",
@@ -500,7 +502,98 @@ export const CompanyReport: React.FC = () => {
         defaultSortKey={"bookingDate"}
         defaultSortDirection="desc"
         searchPlaceholder="Search report..."
+        onRowClick={setViewingRow}
       />
+      <Modal
+        isOpen={!!viewingRow}
+        onClose={() => setViewingRow(null)}
+        title="Company booking details"
+        size="lg"
+        closeOnOverlayClick={false}
+      >
+        {viewingRow && (
+          <div className="space-y-4 text-sm text-gray-700">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <p className="text-xs text-gray-500">S.No</p>
+                <p className="font-semibold text-gray-900">{viewingRow.sNo}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Company</p>
+                <p className="font-semibold text-gray-900">
+                  {viewingRow.companyName}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Booking Date</p>
+                <p className="font-semibold text-gray-900">
+                  {new Date(viewingRow.bookingDate).toLocaleDateString()}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Created Date</p>
+                <p className="font-semibold text-gray-900">
+                  {new Date(viewingRow.createdDate).toLocaleString()}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Customer</p>
+                <p className="font-semibold text-gray-900">
+                  {viewingRow.customerName}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Driver</p>
+                <p className="font-semibold text-gray-900">
+                  {viewingRow.driverName}
+                </p>
+              </div>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">Route</p>
+              <p className="font-semibold text-gray-900">{viewingRow.route}</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-gray-100 pt-4">
+              <div>
+                <p className="text-xs text-gray-500">Booking Amount</p>
+                <p className="font-semibold text-gray-900">
+                  ₹{viewingRow.bookingAmount.toLocaleString()}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Advance to Driver</p>
+                <p className="font-semibold text-gray-900">
+                  ₹{viewingRow.advanceToDriver.toLocaleString()}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Driver Expenses</p>
+                <p className="font-semibold text-gray-900">
+                  ₹{viewingRow.driverExpenses.toLocaleString()}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Driver Received</p>
+                <p className="font-semibold text-gray-900">
+                  ₹{viewingRow.driverReceived.toLocaleString()}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Amount Payable</p>
+                <p className="font-semibold text-gray-900">
+                  ₹{viewingRow.amountPayable.toLocaleString()}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Vehicle</p>
+                <p className="font-semibold text-gray-900">
+                  {viewingRow.vehicle}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };
