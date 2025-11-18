@@ -8,6 +8,8 @@ const userSchema = new mongoose_1.Schema({
     name: { type: String, required: true },
     phone: { type: String, required: true },
     role: { type: String, required: true },
+    driverId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'Driver' },
+    customerId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'Customer' },
     password: { type: String, required: true },
     createdAt: { type: Date, default: Date.now },
 });

@@ -1,5 +1,5 @@
 // src/controllers/booking.controller.ts
-import { Request, Response } from "express";
+import { Response } from "express";
 import { Types } from "mongoose";
 import * as service from "../services";
 import {
@@ -11,6 +11,7 @@ import {
   driverBookingPaymentSchema,
   driverBookingPaymentUpdateSchema,
 } from "../validation";
+import { AuthRequest } from "../types";
 import {
   createDriverBookingPayment,
   listDriverBookingPayments,
@@ -18,7 +19,7 @@ import {
   deleteDriverBookingPayment,
 } from "../services/payment.service";
 
-export const createBooking = async (req: Request, res: Response) => {
+export const createBooking = async (req: AuthRequest, res: Response) => {
   const data = bookingSchema.parse(req.body);
   const bookingData = {
     ...data,
@@ -38,7 +39,7 @@ export const createBooking = async (req: Request, res: Response) => {
   res.status(201).json(booking);
 };
 
-export const getBookings = async (req: Request, res: Response) => {
+export const getBookings = async (req: AuthRequest, res: Response) => {
   const page = parseInt(req.query.page as string) || 1;
   const limit = parseInt(req.query.limit as string) || 10;
   const filters = {
@@ -48,17 +49,17 @@ export const getBookings = async (req: Request, res: Response) => {
     endDate: req.query.endDate,
     driverId: req.query.driverId,
   };
-  const result = await service.getBookings(page, limit, filters);
+  const result = await service.getBookings(page, limit, filters, req.user);
   res.json(result);
 };
 
-export const getBookingById = async (req: Request, res: Response) => {
-  const booking = await service.getBookingById(req.params.id);
+export const getBookingById = async (req: AuthRequest, res: Response) => {
+  const booking = await service.getBookingById(req.params.id, req.user);
   if (!booking) return res.status(404).json({ message: "Booking not found" });
   res.json(booking);
 };
 
-export const updateBooking = async (req: Request, res: Response) => {
+export const updateBooking = async (req: AuthRequest, res: Response) => {
   const data = updateBookingSchema.parse(req.body);
   const updateData: any = { ...data };
 
@@ -82,19 +83,19 @@ export const updateBooking = async (req: Request, res: Response) => {
   res.json(booking);
 };
 
-export const deleteBooking = async (req: Request, res: Response) => {
+export const deleteBooking = async (req: AuthRequest, res: Response) => {
   await service.deleteBooking(req.params.id);
   res.status(204).send();
 };
 
-export const addExpense = async (req: Request, res: Response) => {
+export const addExpense = async (req: AuthRequest, res: Response) => {
   const data = expenseSchema.parse(req.body);
   const booking = await service.addExpense(req.params.id, data);
   if (!booking) return res.status(404).json({ message: "Booking not found" });
   res.json(booking);
 };
 
-export const updateExpense = async (req: Request, res: Response) => {
+export const updateExpense = async (req: AuthRequest, res: Response) => {
   const data = expenseSchema.partial().parse(req.body);
   const booking = await service.updateExpense(
     req.params.id,
@@ -105,24 +106,25 @@ export const updateExpense = async (req: Request, res: Response) => {
   res.json(booking);
 };
 
-export const deleteExpense = async (req: Request, res: Response) => {
+export const deleteExpense = async (req: AuthRequest, res: Response) => {
   const booking = await service.deleteExpense(req.params.id, req.params.expenseId);
   if (!booking) return res.status(404).json({ message: 'Booking or expense not found' });
   res.json(booking);
 };
 
-export const updateStatus = async (req: Request, res: Response) => {
+export const updateStatus = async (req: AuthRequest, res: Response) => {
   const { status, changedBy } = statusSchema.parse(req.body);
   const booking = await service.updateStatus(
     req.params.id,
     status,
-    changedBy || "System"
+    changedBy || "System",
+    req.user
   );
   if (!booking) return res.status(404).json({ message: "Booking not found" });
   res.json(booking);
 };
 
-export const uploadDutySlips = async (req: Request, res: Response) => {
+export const uploadDutySlips = async (req: AuthRequest, res: Response) => {
   const files = (req.files as Express.Multer.File[]) || [];
   const uploadedBy = req.body.uploadedBy || "System"; // Get from request body or use default
   const booking = await service.uploadDutySlips(
@@ -134,14 +136,14 @@ export const uploadDutySlips = async (req: Request, res: Response) => {
   res.json(booking);
 };
 
-export const removeDutySlip = async (req: Request, res: Response) => {
+export const removeDutySlip = async (req: AuthRequest, res: Response) => {
   const { path } = req.body;
   const booking = await service.removeDutySlip(req.params.id, path);
   if (!booking) return res.status(404).json({ message: "Booking not found" });
   res.json(booking);
 };
 
-export const addPayment = async (req: Request, res: Response) => {
+export const addPayment = async (req: AuthRequest, res: Response) => {
   const data = bookingPaymentSchema.parse(req.body);
   const payment = { ...data, paidOn: new Date(data.paidOn) };
   const booking = await service.addPayment(req.params.id, payment as any);
@@ -149,12 +151,12 @@ export const addPayment = async (req: Request, res: Response) => {
   res.json(booking);
 };
 
-export const getPayments = async (req: Request, res: Response) => {
+export const getPayments = async (req: AuthRequest, res: Response) => {
   const payments = await service.listPayments(req.params.id);
   res.json(payments);
 };
 
-export const updatePayment = async (req: Request, res: Response) => {
+export const updatePayment = async (req: AuthRequest, res: Response) => {
   // Allow partial updates; coerce paidOn to Date if provided
   const data = bookingPaymentSchema.partial().parse(req.body);
   const updates: any = { ...data };
@@ -168,14 +170,14 @@ export const updatePayment = async (req: Request, res: Response) => {
   res.json(booking);
 };
 
-export const deletePayment = async (req: Request, res: Response) => {
+export const deletePayment = async (req: AuthRequest, res: Response) => {
   const booking = await service.deletePayment(req.params.id, req.params.paymentId);
   if (!booking) return res.status(404).json({ message: 'Booking or payment not found' });
   res.json(booking);
 };
 
 // Driver specific payments tied to a booking
-export const addDriverPayment = async (req: Request, res: Response) => {
+export const addDriverPayment = async (req: AuthRequest, res: Response) => {
   const data = driverBookingPaymentSchema.parse({
     ...req.body,
     bookingId: req.params.id,
@@ -198,12 +200,12 @@ export const addDriverPayment = async (req: Request, res: Response) => {
   }
 };
 
-export const listDriverPayments = async (req: Request, res: Response) => {
+export const listDriverPayments = async (req: AuthRequest, res: Response) => {
   const payments = await listDriverBookingPayments(req.params.id);
   res.json(payments);
 };
 
-export const updateDriverPayment = async (req: Request, res: Response) => {
+export const updateDriverPayment = async (req: AuthRequest, res: Response) => {
   const data = driverBookingPaymentUpdateSchema.parse(req.body);
   try {
     const updated = await updateDriverBookingPayment(
@@ -220,14 +222,14 @@ export const updateDriverPayment = async (req: Request, res: Response) => {
   }
 };
 
-export const deleteDriverPayment = async (req: Request, res: Response) => {
+export const deleteDriverPayment = async (req: AuthRequest, res: Response) => {
   const deleted = await deleteDriverBookingPayment(req.params.paymentId);
   if (!deleted)
     return res.status(404).json({ message: "Driver payment not found" });
   res.status(204).send();
 };
 
-export const exportDriverPayments = async (req: Request, res: Response) => {
+export const exportDriverPayments = async (req: AuthRequest, res: Response) => {
   // Simple CSV export for now
   const payments = await listDriverBookingPayments(req.params.id);
   const headers = [

@@ -8,8 +8,8 @@ import { UserRole } from '../types';
 const router = Router();
 
 router.post('/', auth(['admin', 'dispatcher']), upload, controller.createDriver);
-router.get('/', auth(['admin', 'dispatcher']), controller.getDrivers);
-router.get('/:id', auth(['admin', 'dispatcher']), controller.getDriverById);
+router.get('/', auth(['admin', 'dispatcher', 'driver']), controller.getDrivers);
+router.get('/:id', auth(['admin', 'dispatcher', 'driver']), controller.getDriverById);
 router.put('/:id', auth(['admin', 'dispatcher']), upload, controller.updateDriver);
 router.delete('/:id', auth(['admin', 'dispatcher']), controller.deleteDriver);
 router.post('/:id/advances', auth(['admin', 'accountant']), controller.addAdvance);

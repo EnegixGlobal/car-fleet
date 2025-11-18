@@ -15,6 +15,8 @@ export interface IUser {
   name: string;
   phone: string;
   role: UserRole;
+  driverId?: Types.ObjectId;
+  customerId?: Types.ObjectId;
   createdAt: Date;
   password: string; // hashed
 }
@@ -180,7 +182,7 @@ export interface IPayment {
 }
 
 export interface AuthRequest extends Request {
-  user?: { id: string; role: UserRole };
+  user?: { id: string; role: UserRole; driverId?: string; customerId?: string };
 }
 
 export interface IDutySlip {

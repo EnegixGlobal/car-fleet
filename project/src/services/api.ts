@@ -122,6 +122,8 @@ export interface LoginResponse {
     name: string;
     role: "admin" | "accountant" | "dispatcher" | "driver" | "customer";
     phone: string;
+    driverId?: string;
+    customerId?: string;
     createdAt: string;
   };
 }
@@ -132,6 +134,8 @@ export interface RegisterRequest {
   name: string;
   phone: string;
   role: "admin" | "accountant" | "dispatcher" | "driver" | "customer";
+  driverId?: string;
+  customerId?: string;
 }
 
 export interface User {
@@ -140,6 +144,8 @@ export interface User {
   name: string;
   phone: string;
   role: "admin" | "accountant" | "dispatcher" | "driver" | "customer";
+  driverId?: string;
+  customerId?: string;
   createdAt: string;
 }
 
@@ -150,6 +156,8 @@ interface RawUser {
   name: string;
   phone: string;
   role: User["role"];
+  driverId?: string | { _id?: string };
+  customerId?: string | { _id?: string };
   createdAt?: string | Date;
 }
 
@@ -317,12 +325,19 @@ export interface ApiError {
 export const authAPI = {
   // Internal helper to normalize mongoose docs
   _normalize(raw: RawUser): User {
+    const resolveRefId = (ref?: string | { _id?: string; id?: string }) => {
+      if (!ref) return undefined;
+      if (typeof ref === "string") return ref;
+      return ref._id || ref.id;
+    };
     return {
       id: raw.id || raw._id || "",
       email: raw.email,
       name: raw.name,
       phone: raw.phone,
       role: raw.role,
+      driverId: resolveRefId(raw.driverId),
+      customerId: resolveRefId(raw.customerId),
       createdAt:
         typeof raw.createdAt === "string"
           ? raw.createdAt

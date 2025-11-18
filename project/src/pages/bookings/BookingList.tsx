@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "../../context/AppContext";
 import { useAuth } from "../../hooks/useAuth";
@@ -23,11 +23,24 @@ export const BookingList: React.FC = () => {
   const { hasRole, user } = useAuth();
   const { showSuccess, showError } = useToast();
 
+  // Resolve the logged-in driver's entity from Drivers list
+  const currentDriver = useMemo(() => {
+    if (!user || user.role !== "driver") return undefined;
+    return (
+      drivers.find((d) => d.id === user.driverId) ||
+      drivers.find(
+        (d) => d.name?.trim().toLowerCase() === user.name?.trim().toLowerCase()
+      )
+    );
+  }, [user, drivers]);
+
   // Filter bookings based on user role
   const getFilteredBookings = () => {
-    if (user?.role === 'driver') {
-      // Drivers see only their assigned trips
-      return bookings.filter(booking => booking.driverId === user.id);
+    if (user?.role === "driver") {
+      if (user.driverId) {
+        return bookings.filter((booking) => booking.driverId === user.driverId);
+      }
+      return [];
     }
     if (user?.role === 'customer') {
       // Customers see only their bookings (would need customer ID mapping)

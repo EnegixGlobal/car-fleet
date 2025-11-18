@@ -15,41 +15,52 @@ export const Navbar: React.FC<NavbarProps> = ({ onSidebarToggle }) => {
   const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);
   const notifRef = useRef<HTMLDivElement | null>(null);
-  const currentDriver = user?.role === 'driver' ? drivers.find(d => d.name === user.name) : undefined;
+  const currentDriver =
+    user?.role === 'driver'
+      ? drivers.find(d => d.id === user.driverId) ||
+        drivers.find(d => d.name?.trim()?.toLowerCase() === user.name?.trim()?.toLowerCase())
+      : undefined;
 
   // Build notifications differently for driver role
   let notifications: { id: string; type: string; message: string; time: string; target?: string }[] = [];
-  if (user?.role === 'driver' && currentDriver) {
-    const todayKey = format(new Date(), 'yyyy-MM-dd');
-    const todaysTrips = bookings.filter(b => b.driverId === currentDriver.id && format(parseISO(b.startDate), 'yyyy-MM-dd') === todayKey);
-    notifications.push(
-      ...todaysTrips.map(b => ({
-        id: 'trip-' + b.id,
-        type: 'trip',
-        message: `${b.status === 'completed' ? 'Completed' : b.status === 'ongoing' ? 'Ongoing' : 'Upcoming'} trip: ${b.pickupLocation} → ${b.dropLocation}`,
-        time: format(parseISO(b.startDate), 'h:mm a'),
-        target: `/bookings/${b.id}`
-      }))
-    );
-    // Document expiry alerts (within 30 days)
-    const soon = addDays(new Date(), 30);
-    const licenseExpiry = parseISO(currentDriver.licenseExpiry);
-    if (isBefore(licenseExpiry, soon)) {
-      notifications.push({
-        id: 'license-exp',
-        type: 'alert',
-        message: `License expiring on ${format(licenseExpiry, 'MMM d, yyyy')}`,
-        time: 'doc'
-      });
+  if (user?.role === 'driver') {
+    const activeDriverId = user.driverId || currentDriver?.id;
+    if (activeDriverId) {
+      const todayKey = format(new Date(), 'yyyy-MM-dd');
+      const todaysTrips = bookings.filter(
+        b => b.driverId === activeDriverId && format(parseISO(b.startDate), 'yyyy-MM-dd') === todayKey
+      );
+      notifications.push(
+        ...todaysTrips.map(b => ({
+          id: 'trip-' + b.id,
+          type: 'trip',
+          message: `${b.status === 'completed' ? 'Completed' : b.status === 'ongoing' ? 'Ongoing' : 'Upcoming'} trip: ${b.pickupLocation} → ${b.dropLocation}`,
+          time: format(parseISO(b.startDate), 'h:mm a'),
+          target: `/bookings/${b.id}`
+        }))
+      );
     }
-    const policeExpiry = parseISO(currentDriver.policeVerificationExpiry);
-    if (isBefore(policeExpiry, soon)) {
-      notifications.push({
-        id: 'police-exp',
-        type: 'alert',
-        message: `Police verification expiring on ${format(policeExpiry, 'MMM d, yyyy')}`,
-        time: 'doc'
-      });
+    if (currentDriver) {
+      // Document expiry alerts (within 30 days)
+      const soon = addDays(new Date(), 30);
+      const licenseExpiry = parseISO(currentDriver.licenseExpiry);
+      if (isBefore(licenseExpiry, soon)) {
+        notifications.push({
+          id: 'license-exp',
+          type: 'alert',
+          message: `License expiring on ${format(licenseExpiry, 'MMM d, yyyy')}`,
+          time: 'doc'
+        });
+      }
+      const policeExpiry = parseISO(currentDriver.policeVerificationExpiry);
+      if (isBefore(policeExpiry, soon)) {
+        notifications.push({
+          id: 'police-exp',
+          type: 'alert',
+          message: `Police verification expiring on ${format(policeExpiry, 'MMM d, yyyy')}`,
+          time: 'doc'
+        });
+      }
     }
   } else {
     // Admin/dispatcher basic placeholder sample notifications
