@@ -9,7 +9,12 @@ export const auth = (roles: UserRole[]) => (req: AuthRequest, res: Response, nex
   const token = authHeader?.replace('Bearer ', '');
   if (!token) return res.status(401).json({ message: 'No token' });
   try {
-    const decoded = jwt.verify(token, config.jwtSecret) as { id: string; role: UserRole };
+    const decoded = jwt.verify(token, config.jwtSecret) as {
+      id: string;
+      role: UserRole;
+      driverId?: string;
+      customerId?: string;
+    };
     if (!roles.includes(decoded.role)) return res.status(403).json({ message: 'Forbidden' });
     req.user = decoded;
     next();

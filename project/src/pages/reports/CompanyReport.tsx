@@ -33,6 +33,8 @@ interface ReportRow {
   createdDate: string;
 }
 
+const INDIVIDUAL_FILTER = "__INDIVIDUAL__";
+
 export const CompanyReport: React.FC = () => {
   const { bookings, drivers, vehicles, companies } = useApp();
   const [from, setFrom] = React.useState(
@@ -71,10 +73,15 @@ export const CompanyReport: React.FC = () => {
     const endDate = customTo || to;
     const start = new Date(startDate);
     const end = new Date(endDate);
+    const isIndividualFilter = companyId === INDIVIDUAL_FILTER;
     const filtered = bookings.filter((b) => {
       const dt = new Date(b.startDate);
       const inRange = dt >= start && dt <= end;
-      const matchesCompany = companyId ? b.companyId === companyId : true;
+      const matchesCompany = companyId
+        ? isIndividualFilter
+          ? b.bookingSource === "individual"
+          : b.bookingSource !== "individual" && b.companyId === companyId
+        : true;
       return inRange && matchesCompany;
     });
 
@@ -95,15 +102,16 @@ export const CompanyReport: React.FC = () => {
     );
 
     const finalRows: ReportRow[] = filtered.map((b, idx) => {
+      const isCompanyBooking = b.bookingSource !== "individual";
       const driver: Driver | undefined = drivers.find(
         (d) => d.id === (b.driverId || "")
       );
       const vehicle: Vehicle | undefined = vehicles.find(
         (v) => v.id === (b.vehicleId || "")
       );
-      const company: Company | undefined = companies.find(
-        (c) => c.id === (b.companyId || "")
-      );
+      const company: Company | undefined = isCompanyBooking
+        ? companies.find((c) => c.id === (b.companyId || ""))
+        : undefined;
       const baseDriverExpenses = b.expenses.reduce((sum, e) => sum + e.amount, 0);
       const hasPaymentAmount = (b.payments || []).reduce((sum, p) => sum + (p.amount || 0), 0);
       const advanceToDriver = (b.advanceReceived || 0) + hasPaymentAmount;
@@ -140,7 +148,7 @@ export const CompanyReport: React.FC = () => {
         route: `${b.pickupLocation} / ${b.dropLocation}`,
         bookingAmount: b.totalAmount,
         driverName: driver?.name || "-",
-        companyName: company?.name || "-",
+        companyName: company?.name || (isCompanyBooking ? "-" : "Individual"),
         advanceToDriver,
         driverExpenses,
         driverReceived,
@@ -366,11 +374,12 @@ export const CompanyReport: React.FC = () => {
               onChange={(e) => setTo(e.target.value)}
             />
             <Select
-              label="Companies"
+              label="Company"
               value={companyId}
               onChange={(e) => setCompanyId(e.target.value)}
               options={[
                 { value: "", label: "All Companies" },
+                { value: INDIVIDUAL_FILTER, label: "Individual" },
                 ...companiesOptions,
               ]}
             />

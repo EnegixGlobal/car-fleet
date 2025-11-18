@@ -11,6 +11,8 @@ export interface User {
   name: string;
   phone: string;
   role: UserRole;
+  driverId?: string;
+  customerId?: string;
   createdAt: string;
   password?: string; // demo only (plain text)
 }

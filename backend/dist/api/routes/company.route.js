@@ -15,13 +15,23 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 }) : function(o, v) {
     o["default"] = v;
 });
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.companyRouter = void 0;
 // src/routes/company.route.ts (Updated)
@@ -31,9 +41,9 @@ const middleware_1 = require("../middleware");
 const router = (0, express_1.Router)();
 exports.companyRouter = router;
 router.post('/', (0, middleware_1.auth)(['admin', 'dispatcher']), controller.createCompany);
-router.get('/', (0, middleware_1.auth)(['admin', 'accountant', 'dispatcher']), controller.getCompanies); // Dispatcher added
-router.get('/:id', (0, middleware_1.auth)(['admin', 'accountant', 'dispatcher']), controller.getCompanyById);
-router.get('/:id/overview', (0, middleware_1.auth)(['admin', 'accountant', 'dispatcher']), controller.getCompanyOverview);
+router.get('/', (0, middleware_1.auth)(['admin', 'accountant', 'dispatcher', 'driver']), controller.getCompanies); // Dispatcher added
+router.get('/:id', (0, middleware_1.auth)(['admin', 'accountant', 'dispatcher', 'driver']), controller.getCompanyById);
+router.get('/:id/overview', (0, middleware_1.auth)(['admin', 'accountant', 'dispatcher', 'driver']), controller.getCompanyOverview);
 router.put('/:id', (0, middleware_1.auth)(['admin', 'accountant']), controller.updateCompany);
 router.delete('/:id', (0, middleware_1.auth)(['admin', 'accountant']), controller.deleteCompany);
 router.post('/:id/payments', (0, middleware_1.auth)(['admin', 'accountant']), controller.recordPayment);

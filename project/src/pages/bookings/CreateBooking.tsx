@@ -89,6 +89,13 @@ export const CreateBooking: React.FC = () => {
     }
   }, [hideEndDate, startDateVal, setValue]);
 
+  // Clear company/agency selection whenever booking source switches to individual
+  React.useEffect(() => {
+    if (bookingSource === 'individual') {
+      setValue('companyId', undefined, { shouldDirty: true, shouldValidate: true });
+    }
+  }, [bookingSource, setValue]);
+
   // Calculate balance automatically
   React.useEffect(() => {
     // Balance derived value (totalAmount - advanceReceived) can be displayed later if needed
@@ -96,8 +103,11 @@ export const CreateBooking: React.FC = () => {
 
   const onSubmit = async (data: BookingFormData) => {
     try {
+      const normalizedCompanyId =
+        data.bookingSource === 'individual' ? undefined : data.companyId || undefined;
       const bookingData = {
         ...data,
+        companyId: normalizedCompanyId,
         balance: data.totalAmount - data.advanceReceived,
         status: 'booked' as const,
         expenses: [],

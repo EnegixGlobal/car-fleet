@@ -15,13 +15,23 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 }) : function(o, v) {
     o["default"] = v;
 });
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -32,14 +42,16 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.exportDriverPayments = exports.deleteDriverPayment = exports.updateDriverPayment = exports.listDriverPayments = exports.addDriverPayment = exports.getPayments = exports.addPayment = exports.removeDutySlip = exports.uploadDutySlips = exports.updateStatus = exports.addExpense = exports.deleteBooking = exports.updateBooking = exports.getBookingById = exports.getBookings = exports.createBooking = void 0;
+exports.exportDriverPayments = exports.deleteDriverPayment = exports.updateDriverPayment = exports.listDriverPayments = exports.addDriverPayment = exports.deletePayment = exports.updatePayment = exports.getPayments = exports.addPayment = exports.removeDutySlip = exports.uploadDutySlips = exports.updateStatus = exports.deleteExpense = exports.updateExpense = exports.addExpense = exports.deleteBooking = exports.updateBooking = exports.getBookingById = exports.getBookings = exports.createBooking = void 0;
 const mongoose_1 = require("mongoose");
 const service = __importStar(require("../services"));
 const validation_1 = require("../validation");
 const payment_service_1 = require("../services/payment.service");
 const createBooking = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const data = validation_1.bookingSchema.parse(req.body);
-    const bookingData = Object.assign(Object.assign({}, data), { customerId: data.customerId ? new mongoose_1.Types.ObjectId(data.customerId) : undefined, companyId: data.companyId ? new mongoose_1.Types.ObjectId(data.companyId) : undefined, vehicleId: data.vehicleId ? new mongoose_1.Types.ObjectId(data.vehicleId) : undefined, driverId: data.driverId ? new mongoose_1.Types.ObjectId(data.driverId) : undefined, startDate: new Date(data.startDate), endDate: new Date(data.endDate), status: 'booked' });
+    const bookingData = Object.assign(Object.assign({}, data), { customerId: data.customerId
+            ? new mongoose_1.Types.ObjectId(data.customerId)
+            : undefined, companyId: data.companyId ? new mongoose_1.Types.ObjectId(data.companyId) : undefined, vehicleId: data.vehicleId ? new mongoose_1.Types.ObjectId(data.vehicleId) : undefined, driverId: data.driverId ? new mongoose_1.Types.ObjectId(data.driverId) : undefined, startDate: new Date(data.startDate), endDate: new Date(data.endDate), status: "booked", dutySlipSubmitted: false, dutySlipSubmittedToCompany: false });
     const booking = yield service.createBooking(bookingData);
     res.status(201).json(booking);
 });
@@ -47,15 +59,21 @@ exports.createBooking = createBooking;
 const getBookings = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
-    const filters = { status: req.query.status, source: req.query.source, startDate: req.query.startDate, endDate: req.query.endDate, driverId: req.query.driverId };
-    const result = yield service.getBookings(page, limit, filters);
+    const filters = {
+        status: req.query.status,
+        source: req.query.source,
+        startDate: req.query.startDate,
+        endDate: req.query.endDate,
+        driverId: req.query.driverId,
+    };
+    const result = yield service.getBookings(page, limit, filters, req.user);
     res.json(result);
 });
 exports.getBookings = getBookings;
 const getBookingById = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const booking = yield service.getBookingById(req.params.id);
+    const booking = yield service.getBookingById(req.params.id, req.user);
     if (!booking)
-        return res.status(404).json({ message: 'Booking not found' });
+        return res.status(404).json({ message: "Booking not found" });
     res.json(booking);
 });
 exports.getBookingById = getBookingById;
@@ -78,7 +96,7 @@ const updateBooking = (req, res) => __awaiter(void 0, void 0, void 0, function* 
         updateData.endDate = new Date(updateData.endDate);
     const booking = yield service.updateBooking(req.params.id, updateData);
     if (!booking)
-        return res.status(404).json({ message: 'Booking not found' });
+        return res.status(404).json({ message: "Booking not found" });
     res.json(booking);
 });
 exports.updateBooking = updateBooking;
@@ -91,24 +109,39 @@ const addExpense = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
     const data = validation_1.expenseSchema.parse(req.body);
     const booking = yield service.addExpense(req.params.id, data);
     if (!booking)
-        return res.status(404).json({ message: 'Booking not found' });
+        return res.status(404).json({ message: "Booking not found" });
     res.json(booking);
 });
 exports.addExpense = addExpense;
+const updateExpense = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const data = validation_1.expenseSchema.partial().parse(req.body);
+    const booking = yield service.updateExpense(req.params.id, req.params.expenseId, data);
+    if (!booking)
+        return res.status(404).json({ message: 'Booking or expense not found' });
+    res.json(booking);
+});
+exports.updateExpense = updateExpense;
+const deleteExpense = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const booking = yield service.deleteExpense(req.params.id, req.params.expenseId);
+    if (!booking)
+        return res.status(404).json({ message: 'Booking or expense not found' });
+    res.json(booking);
+});
+exports.deleteExpense = deleteExpense;
 const updateStatus = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { status, changedBy } = validation_1.statusSchema.parse(req.body);
-    const booking = yield service.updateStatus(req.params.id, status, changedBy || 'System');
+    const booking = yield service.updateStatus(req.params.id, status, changedBy || "System", req.user);
     if (!booking)
-        return res.status(404).json({ message: 'Booking not found' });
+        return res.status(404).json({ message: "Booking not found" });
     res.json(booking);
 });
 exports.updateStatus = updateStatus;
 const uploadDutySlips = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const files = req.files || [];
-    const uploadedBy = req.body.uploadedBy || 'System'; // Get from request body or use default
+    const uploadedBy = req.body.uploadedBy || "System"; // Get from request body or use default
     const booking = yield service.uploadDutySlips(req.params.id, files, uploadedBy);
     if (!booking)
-        return res.status(404).json({ message: 'Booking not found' });
+        return res.status(404).json({ message: "Booking not found" });
     res.json(booking);
 });
 exports.uploadDutySlips = uploadDutySlips;
@@ -116,7 +149,7 @@ const removeDutySlip = (req, res) => __awaiter(void 0, void 0, void 0, function*
     const { path } = req.body;
     const booking = yield service.removeDutySlip(req.params.id, path);
     if (!booking)
-        return res.status(404).json({ message: 'Booking not found' });
+        return res.status(404).json({ message: "Booking not found" });
     res.json(booking);
 });
 exports.removeDutySlip = removeDutySlip;
@@ -125,7 +158,7 @@ const addPayment = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
     const payment = Object.assign(Object.assign({}, data), { paidOn: new Date(data.paidOn) });
     const booking = yield service.addPayment(req.params.id, payment);
     if (!booking)
-        return res.status(404).json({ message: 'Booking not found' });
+        return res.status(404).json({ message: "Booking not found" });
     res.json(booking);
 });
 exports.addPayment = addPayment;
@@ -134,6 +167,25 @@ const getPayments = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
     res.json(payments);
 });
 exports.getPayments = getPayments;
+const updatePayment = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    // Allow partial updates; coerce paidOn to Date if provided
+    const data = validation_1.bookingPaymentSchema.partial().parse(req.body);
+    const updates = Object.assign({}, data);
+    if (updates.paidOn)
+        updates.paidOn = new Date(updates.paidOn);
+    const booking = yield service.updatePayment(req.params.id, req.params.paymentId, updates);
+    if (!booking)
+        return res.status(404).json({ message: 'Booking or payment not found' });
+    res.json(booking);
+});
+exports.updatePayment = updatePayment;
+const deletePayment = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const booking = yield service.deletePayment(req.params.id, req.params.paymentId);
+    if (!booking)
+        return res.status(404).json({ message: 'Booking or payment not found' });
+    res.json(booking);
+});
+exports.deletePayment = deletePayment;
 // Driver specific payments tied to a booking
 const addDriverPayment = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const data = validation_1.driverBookingPaymentSchema.parse(Object.assign(Object.assign({}, req.body), { bookingId: req.params.id }));
@@ -150,7 +202,9 @@ const addDriverPayment = (req, res) => __awaiter(void 0, void 0, void 0, functio
         res.status(201).json(payment);
     }
     catch (e) {
-        res.status(400).json({ message: e.message || 'Failed to create driver payment' });
+        res
+            .status(400)
+            .json({ message: e.message || "Failed to create driver payment" });
     }
 });
 exports.addDriverPayment = addDriverPayment;
@@ -164,45 +218,60 @@ const updateDriverPayment = (req, res) => __awaiter(void 0, void 0, void 0, func
     try {
         const updated = yield (0, payment_service_1.updateDriverBookingPayment)(req.params.paymentId, data);
         if (!updated)
-            return res.status(404).json({ message: 'Driver payment not found' });
+            return res.status(404).json({ message: "Driver payment not found" });
         res.json(updated);
     }
     catch (e) {
-        res.status(400).json({ message: e.message || 'Failed to update driver payment' });
+        res
+            .status(400)
+            .json({ message: e.message || "Failed to update driver payment" });
     }
 });
 exports.updateDriverPayment = updateDriverPayment;
 const deleteDriverPayment = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const deleted = yield (0, payment_service_1.deleteDriverBookingPayment)(req.params.paymentId);
     if (!deleted)
-        return res.status(404).json({ message: 'Driver payment not found' });
+        return res.status(404).json({ message: "Driver payment not found" });
     res.status(204).send();
 });
 exports.deleteDriverPayment = deleteDriverPayment;
 const exportDriverPayments = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     // Simple CSV export for now
     const payments = yield (0, payment_service_1.listDriverBookingPayments)(req.params.id);
-    const headers = ['id', 'bookingId', 'driverId', 'mode', 'amount', 'description', 'date', 'fuelQuantity', 'fuelRate', 'computedAmount', 'settled', 'settledAt'];
-    const rows = payments.map(p => {
+    const headers = [
+        "id",
+        "bookingId",
+        "driverId",
+        "mode",
+        "amount",
+        "description",
+        "date",
+        "fuelQuantity",
+        "fuelRate",
+        "computedAmount",
+        "settled",
+        "settledAt",
+    ];
+    const rows = payments.map((p) => {
         var _a, _b, _c;
         return [
             p._id,
             p.bookingId,
             p.entityId,
-            p.driverPaymentMode || '',
+            p.driverPaymentMode || "",
             p.amount,
-            p.description || '',
+            p.description || "",
             p.date.toISOString(),
-            (_a = p.fuelQuantity) !== null && _a !== void 0 ? _a : '',
-            (_b = p.fuelRate) !== null && _b !== void 0 ? _b : '',
-            (_c = p.computedAmount) !== null && _c !== void 0 ? _c : '',
-            p.settled ? 'true' : 'false',
-            p.settledAt ? p.settledAt.toISOString() : ''
-        ].join(',');
+            (_a = p.fuelQuantity) !== null && _a !== void 0 ? _a : "",
+            (_b = p.fuelRate) !== null && _b !== void 0 ? _b : "",
+            (_c = p.computedAmount) !== null && _c !== void 0 ? _c : "",
+            p.settled ? "true" : "false",
+            p.settledAt ? p.settledAt.toISOString() : "",
+        ].join(",");
     });
-    const csv = [headers.join(','), ...rows].join('\n');
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', `attachment; filename="driver-payments-${req.params.id}.csv"`);
+    const csv = [headers.join(","), ...rows].join("\n");
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", `attachment; filename="driver-payments-${req.params.id}.csv"`);
     res.send(csv);
 });
 exports.exportDriverPayments = exportDriverPayments;

@@ -22,12 +22,21 @@ export const Dashboard: React.FC = () => {
   }, []);
 
   // If current user is a driver, resolve driver entity (match by name for demo)
-  const currentDriver = user?.role === 'driver' ? drivers.find((d: Driver) => d.name === user.name) : undefined;
+  const currentDriver =
+    user?.role === 'driver'
+      ? drivers.find((d: Driver) => d.id === user.driverId) ||
+        drivers.find(
+          (d: Driver) => d.name?.trim().toLowerCase() === user.name?.trim().toLowerCase()
+        )
+      : undefined;
+
+  const activeDriverId = user?.role === 'driver' ? user.driverId || currentDriver?.id : undefined;
 
   // Helper to decide if a booking belongs to current user (if driver)
   const bookingBelongsToCurrentDriver = (driverId?: string) => {
-    if (!currentDriver) return true; // non-driver sees all
-    return driverId === currentDriver.id;
+    if (user?.role !== 'driver') return true;
+    if (!activeDriverId) return false;
+    return driverId === activeDriverId;
   };
 
   // Calculate metrics
@@ -57,7 +66,8 @@ export const Dashboard: React.FC = () => {
     const thirtyDaysFromNow = addDays(new Date(), 30);
 
     // Check driver documents (only current driver if role is driver)
-  const driverList: Driver[] = currentDriver ? [currentDriver] : drivers;
+  const driverList: Driver[] =
+    user?.role === 'driver' ? (currentDriver ? [currentDriver] : []) : drivers;
   driverList.forEach((driver: Driver) => {
       const licenseExpiry = parseISO(driver.licenseExpiry);
       const policeExpiry = parseISO(driver.policeVerificationExpiry);
@@ -81,7 +91,17 @@ export const Dashboard: React.FC = () => {
 
     // Check vehicle documents
   // Vehicles: for driver role we only show vehicles that appear in their trips today / ongoing
-  const relevantVehicleIds = currentDriver ? Array.from(new Set(bookings.filter((b: Booking) => b.driverId === currentDriver.id).map((b: Booking) => b.vehicleId).filter(Boolean))) : vehicles.map((v: Vehicle) => v.id);
+  const relevantVehicleIds =
+    user?.role === 'driver' && activeDriverId
+      ? Array.from(
+          new Set(
+            bookings
+              .filter((b: Booking) => b.driverId === activeDriverId)
+              .map((b: Booking) => b.vehicleId)
+              .filter(Boolean) as string[]
+          )
+        )
+      : vehicles.map((v: Vehicle) => v.id);
   vehicles.filter((v: Vehicle) => relevantVehicleIds.includes(v.id)).forEach((vehicle: Vehicle) => {
       const insurance = parseISO(vehicle.insuranceExpiry);
       const fitness = parseISO(vehicle.fitnessExpiry);

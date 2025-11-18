@@ -1,6 +1,6 @@
 // src/services/booking.service.ts
 import { Booking } from '../models';
-import { IBooking } from '../types';
+import { AuthRequest, IBooking } from '../types';
 
 export const createBooking = async (data: Omit<IBooking, '_id' | 'createdAt' | 'statusHistory' | 'expenses' | 'dutySlips' | 'billed' | 'balance'>) => {
   const booking = new Booking({
@@ -20,13 +20,31 @@ export const createBooking = async (data: Omit<IBooking, '_id' | 'createdAt' | '
   return booking.populate('companyId driverId vehicleId customerId');
 };
 
-export const getBookings = async (page: number, limit: number, filters: any) => {
+export const getBookings = async (page: number, limit: number, filters: any, user?: AuthRequest['user']) => {
   const query: Record<string, any> = {};
   if (filters.status) query['status'] = filters.status;
   if (filters.source) query['bookingSource'] = filters.source;
   if (filters.startDate) query['startDate'] = { $gte: new Date(filters.startDate) };
-  if (filters.endDate) query['endDate'] = { $lte: new Date(filters.endDate) };
-  if (filters.driverId) query['driverId'] = filters.driverId;
+  if (filters.endDate) {
+    const endCriteria = query['endDate'] || {};
+    endCriteria.$lte = new Date(filters.endDate);
+    query['endDate'] = endCriteria;
+  }
+  if (filters.driverId && user?.role !== 'driver') query['driverId'] = filters.driverId;
+
+  if (user?.role === 'driver') {
+    if (!user.driverId) {
+      return { bookings: [], total: 0 };
+    }
+    query['driverId'] = user.driverId;
+  }
+
+  if (user?.role === 'customer') {
+    if (!user.customerId) {
+      return { bookings: [], total: 0 };
+    }
+    query['customerId'] = user.customerId;
+  }
 
   const skip = (page - 1) * limit;
   const [bookings, total] = await Promise.all([
@@ -36,8 +54,17 @@ export const getBookings = async (page: number, limit: number, filters: any) => 
   return { bookings, total };
 };
 
-export const getBookingById = async (id: string) => {
-  return Booking.findById(id).populate('companyId driverId vehicleId customerId');
+export const getBookingById = async (id: string, user?: AuthRequest['user']) => {
+  const filter: Record<string, any> = { _id: id };
+  if (user?.role === 'driver') {
+    if (!user.driverId) return null;
+    filter.driverId = user.driverId;
+  }
+  if (user?.role === 'customer') {
+    if (!user.customerId) return null;
+    filter.customerId = user.customerId;
+  }
+  return Booking.findOne(filter).populate('companyId driverId vehicleId customerId');
 };
 
 export const updateBooking = async (id: string, updates: Partial<IBooking>) => {
@@ -95,9 +122,18 @@ export const deleteExpense = async (bookingId: string, expenseId: string) => {
   ).populate('companyId driverId vehicleId customerId');
 };
 
-export const updateStatus = async (bookingId: string, status: IBooking['status'], changedBy: string) => {
+export const updateStatus = async (bookingId: string, status: IBooking['status'], changedBy: string, user?: AuthRequest['user']) => {
   const change = { status, timestamp: new Date(), changedBy };
-  return Booking.findByIdAndUpdate(bookingId, { status, $push: { statusHistory: change } }, { new: true }).populate('companyId driverId vehicleId customerId');
+  const filter: Record<string, any> = { _id: bookingId };
+  if (user?.role === 'driver') {
+    if (!user.driverId) return null;
+    filter.driverId = user.driverId;
+  }
+  if (user?.role === 'customer') {
+    if (!user.customerId) return null;
+    filter.customerId = user.customerId;
+  }
+  return Booking.findOneAndUpdate(filter, { status, $push: { statusHistory: change } }, { new: true }).populate('companyId driverId vehicleId customerId');
 };
 
 export const uploadDutySlips = async (bookingId: string, files: Express.Multer.File[], uploadedBy: string) => {

@@ -7,6 +7,8 @@ const userSchema = new Schema<IUser>({
   name: { type: String, required: true },
   phone: { type: String, required: true },
   role: { type: String, required: true },
+  driverId: { type: Schema.Types.ObjectId, ref: 'Driver' },
+  customerId: { type: Schema.Types.ObjectId, ref: 'Customer' },
   password: { type: String, required: true },
   createdAt: { type: Date, default: Date.now },
 });

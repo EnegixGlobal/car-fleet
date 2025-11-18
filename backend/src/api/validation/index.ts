@@ -115,6 +115,8 @@ export const registerSchema = z.object({
   name: z.string().min(1, "Name required"),
   phone: z.string().min(10, "Invalid phone"),
   role: z.enum(["admin", "accountant", "dispatcher", "driver", "customer"]),
+  driverId: z.string().optional(),
+  customerId: z.string().optional(),
 });
 
 export const loginSchema = z.object({

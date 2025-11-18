@@ -149,6 +149,12 @@ export const EditBooking: React.FC = () => {
     }
   }, [hideEndDate, startDateVal, setValue]);
 
+  React.useEffect(() => {
+    if (bookingSource === 'individual') {
+      setValue('companyId', undefined, { shouldDirty: true, shouldValidate: true });
+    }
+  }, [bookingSource, setValue]);
+
   if (!booking) {
     return (
       <div className="space-y-4">
@@ -159,8 +165,11 @@ export const EditBooking: React.FC = () => {
   }
 
   const onSubmit = async (data: BookingFormData) => {
+    const normalizedCompanyId =
+      data.bookingSource === 'individual' ? undefined : data.companyId || undefined;
     await updateBooking(booking.id, {
       ...data,
+      companyId: normalizedCompanyId,
       balance: data.totalAmount - data.advanceReceived,
       driverId: data.driverId || undefined,
       vehicleId: data.vehicleId || undefined,

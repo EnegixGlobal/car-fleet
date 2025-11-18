@@ -13,21 +13,70 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteUser = exports.updateUser = exports.getUsers = exports.loginUser = exports.registerUser = exports.getUserById = void 0;
-const getUserById = (id) => __awaiter(void 0, void 0, void 0, function* () {
-    return models_1.User.findById(id).select('-password');
-});
-exports.getUserById = getUserById;
-// src/services/auth.service.ts
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const models_1 = require("../models");
 const config_1 = require("../../config");
+const toStringId = (value) => value ? value.toString() : undefined;
+const collectPhoneVariants = (phone) => {
+    const trimmed = (phone === null || phone === void 0 ? void 0 : phone.trim()) || '';
+    const digits = trimmed.replace(/\D/g, '');
+    const variants = new Set();
+    if (trimmed)
+        variants.add(trimmed);
+    if (digits) {
+        variants.add(digits);
+        variants.add(`+${digits}`);
+    }
+    return Array.from(variants).filter(Boolean);
+};
+const syncUserAssociations = (user) => __awaiter(void 0, void 0, void 0, function* () {
+    let driverId = toStringId(user.driverId);
+    let customerId = toStringId(user.customerId);
+    let dirty = false;
+    if (user.role === 'driver' && !driverId) {
+        const driver = yield models_1.Driver.findOne({
+            phone: { $in: collectPhoneVariants(user.phone) },
+        }).select('_id phone');
+        if (driver) {
+            user.driverId = driver._id;
+            driverId = driver._id.toString();
+            dirty = true;
+        }
+    }
+    if (user.role === 'customer' && !customerId) {
+        const customer = yield models_1.Customer.findOne({
+            phone: { $in: collectPhoneVariants(user.phone) },
+        }).select('_id phone');
+        if (customer) {
+            user.customerId = customer._id;
+            customerId = customer._id.toString();
+            dirty = true;
+        }
+    }
+    if (dirty) {
+        yield user.save();
+    }
+    return { driverId, customerId };
+});
+const getUserById = (id) => __awaiter(void 0, void 0, void 0, function* () {
+    return models_1.User.findById(id).select('-password');
+});
+exports.getUserById = getUserById;
 const registerUser = (data) => __awaiter(void 0, void 0, void 0, function* () {
     const existing = yield models_1.User.findOne({ email: data.email });
     if (existing)
         throw new Error('Email in use');
     const hashed = yield bcryptjs_1.default.hash(data.password, 10);
-    const user = new models_1.User(Object.assign(Object.assign({}, data), { password: hashed }));
+    const user = new models_1.User({
+        email: data.email,
+        password: hashed,
+        name: data.name,
+        phone: data.phone,
+        role: data.role,
+        driverId: data.driverId,
+        customerId: data.customerId,
+    });
     yield user.save();
     return user;
 });
@@ -37,7 +86,8 @@ const loginUser = (email, password) => __awaiter(void 0, void 0, void 0, functio
     if (!user || !(yield bcryptjs_1.default.compare(password, user.password))) {
         throw new Error('Invalid credentials');
     }
-    const token = jsonwebtoken_1.default.sign({ id: user._id.toString(), role: user.role }, config_1.config.jwtSecret, { expiresIn: '1d' });
+    const { driverId, customerId } = yield syncUserAssociations(user);
+    const token = jsonwebtoken_1.default.sign({ id: user._id.toString(), role: user.role, driverId, customerId }, config_1.config.jwtSecret, { expiresIn: '1d' });
     return {
         token,
         user: {
@@ -46,8 +96,10 @@ const loginUser = (email, password) => __awaiter(void 0, void 0, void 0, functio
             name: user.name,
             phone: user.phone,
             role: user.role,
-            createdAt: user.createdAt.toISOString()
-        }
+            driverId,
+            customerId,
+            createdAt: user.createdAt.toISOString(),
+        },
     };
 });
 exports.loginUser = loginUser;
