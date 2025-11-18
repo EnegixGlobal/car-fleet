@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
+import { useToast } from '../../hooks/useToast';
 import { DataTable } from '../../components/common/DataTable';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
@@ -9,11 +10,13 @@ import { Company } from '../../types';
 
 export const CompanyList: React.FC = () => {
   const navigate = useNavigate();
-  const { companies } = useApp();
+  const { companies, deleteCompany } = useApp();
+  const { showSuccess, showError } = useToast();
   const [outstandingStatus, setOutstandingStatus] = useState<'all' | 'with' | 'clear'>('all');
   const [minOutstanding, setMinOutstanding] = useState<string>('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   let filteredCompanies = companies;
   if (outstandingStatus === 'with') filteredCompanies = filteredCompanies.filter(c => c.outstandingAmount > 0);
@@ -59,22 +62,55 @@ export const CompanyList: React.FC = () => {
     }
   ];
 
+  const handleDelete = async (company: Company) => {
+    const confirmed = window.confirm(
+      `Delete company ${company.name}? This action cannot be undone.`
+    );
+    if (!confirmed) return;
+    setDeletingId(company.id);
+    try {
+      await deleteCompany(company.id);
+      showSuccess('Company deleted successfully');
+    } catch (err) {
+      console.error(err);
+      showError('Failed to delete company. Please try again.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   const actions = (company: Company) => (
     <div className="flex space-x-2">
       <button
-  onClick={(e) => { e.stopPropagation(); navigate(`/companies/${company.id}`); }}
+        onClick={(e) => { e.stopPropagation(); navigate(`/companies/${company.id}`); }}
         className="text-amber-600 hover:text-amber-800"
         aria-label="View company"
       >
-  <Icon name="eye" className="h-4 w-4" />
+        <Icon name="eye" className="h-4 w-4" />
       </button>
       <span className="text-gray-300">|</span>
       <button
-  onClick={(e) => { e.stopPropagation(); navigate(`/companies/${company.id}/edit`); }}
+        onClick={(e) => { e.stopPropagation(); navigate(`/companies/${company.id}/edit`); }}
         className="text-amber-600 hover:text-amber-800"
         aria-label="Edit company"
       >
-  <Icon name="edit" className="h-4 w-4" />
+        <Icon name="edit" className="h-4 w-4" />
+      </button>
+      <span className="text-gray-300">|</span>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          handleDelete(company);
+        }}
+        className="text-amber-600 hover:text-amber-800 disabled:text-gray-400"
+        aria-label="Delete company"
+        disabled={deletingId === company.id}
+      >
+        <Icon
+          name={deletingId === company.id ? 'spinner' : 'delete'}
+          className="h-4 w-4"
+          spin={deletingId === company.id}
+        />
       </button>
     </div>
   );
