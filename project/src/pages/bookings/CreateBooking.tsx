@@ -198,24 +198,56 @@ export const CreateBooking: React.FC = () => {
                 <select
                   aria-label="Select existing customer"
                   className="w-full border-gray-300 rounded-md focus:ring-amber-500 focus:border-amber-500"
+                  // onChange={(e) => {
+                  //   const id = e.target.value;
+                  //   if (!id) {
+                  //     setValue('customerName', '');
+                  //     setValue('customerPhone', '');
+                  //     return;
+                  //   }
+                  //   const c = customers.find(cu => cu.id === id);
+                  //   if (c) {
+                  //     setValue('customerName', c.name, { shouldValidate: true });
+                  //     setValue('customerPhone', c.phone, { shouldValidate: true });
+                  //     if (c.companyId) {
+                  //       setValue('bookingSource', 'company');
+                  //       setValue('companyId', c.companyId);
+                  //     }
+                  //     (document.getElementById('selectedCustomerId') as HTMLInputElement).value = id;
+                  //   }
+                  // }}
                   onChange={(e) => {
                     const id = e.target.value;
+                  
+                    // If user selects "-- New / Manual --"
                     if (!id) {
                       setValue('customerName', '');
                       setValue('customerPhone', '');
+                      setValue('bookingSource', 'individual');
+                      setValue('companyId', undefined);
                       return;
                     }
+                  
                     const c = customers.find(cu => cu.id === id);
+                  
                     if (c) {
                       setValue('customerName', c.name, { shouldValidate: true });
                       setValue('customerPhone', c.phone, { shouldValidate: true });
+                  
                       if (c.companyId) {
+                        // Customer belongs to a company/agency
                         setValue('bookingSource', 'company');
                         setValue('companyId', c.companyId);
+                      } else {
+                        // Customer is individual
+                        setValue('bookingSource', 'individual');
+                        setValue('companyId', undefined);
                       }
+                  
                       (document.getElementById('selectedCustomerId') as HTMLInputElement).value = id;
                     }
                   }}
+                  
                   defaultValue=""
                 >
                   <option value="">-- New / Manual --</option>
