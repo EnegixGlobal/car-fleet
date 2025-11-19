@@ -27,7 +27,7 @@ interface ReportRow {
   vehicle: string;
   createdDate: string;
   finalPaid?: number;
-  
+
 }
 
 export const DriverReport: React.FC = () => {
@@ -37,9 +37,9 @@ export const DriverReport: React.FC = () => {
   const formatMoney = (n: number) =>
     Number.isFinite(n)
       ? n.toLocaleString(undefined, {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        })
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })
       : "0.00";
   const [from, setFrom] = React.useState(
     format(startOfMonth(new Date()), "yyyy-MM-dd")
@@ -75,7 +75,7 @@ export const DriverReport: React.FC = () => {
       return inRange && matchesDriver;
     });
   }, [bookings, driverId, from, to]);
-  
+
 
   const bookingPayables = React.useMemo(
     () =>
@@ -96,59 +96,66 @@ export const DriverReport: React.FC = () => {
         const paymentsForBooking = (driverPayments || []).filter(
           (p) => p.bookingId === b.id
         );
-        
+
         // console.log("paymentsForBooking", paymentsForBooking);
-        
+
         const totalOilAmount = paymentsForBooking
           // exclude entries with "Final payment" in description
           .filter((p) => !p.description?.toLowerCase().includes("final payment"))
           // then sum the amounts
           .reduce((sum, p) => sum + (p.amount || 0), 0);
-        
+
         // console.log("Total oil amount (without Final payment):", totalOilAmount);
-        
-        const driverExpenses = baseDriverExpenses + totalOilAmount;
-        // console.log("driverExpenses 1", driverExpenses);
-      const amountPayable = (() => {
-        const hasPayments = (b.payments || []).length > 0;
-        const hasPaymentAmount = (b.payments || []).reduce(
+        // const amountPayable = (() => {
+        //   const hasPayments = (b.payments || []).length > 0;
+        //   const hasPaymentAmount = (b.payments || []).reduce(
+        //     (sum, p) => sum + (p.amount || 0),
+        //     0
+        //   );
+
+        //   if (totalOilAmount === 0) {
+        //     // 🧮 No oil payment case
+        //     if (hasPaymentAmount === baseDriverExpenses) {
+        //       return 0;
+        //     } else if (
+        //       hasPaymentAmount < baseDriverExpenses &&
+        //       hasPaymentAmount > 0
+        //     ) {
+        //       return baseDriverExpenses - hasPaymentAmount;
+        //     } else {
+        //       return baseDriverExpenses;
+        //     }
+        //   } else {
+        //     // 🛢️ Oil payment exists
+        //     if (hasPaymentAmount === 0) {
+        //       return baseDriverExpenses + totalOilAmount;
+        //     } else if (hasPaymentAmount < baseDriverExpenses) {
+        //       return totalOilAmount + (baseDriverExpenses - hasPaymentAmount);
+        //     } else {
+        //       return totalOilAmount;
+        //     }
+        //   }
+        // })();
+        const onDutyPaid = (b.payments || []).reduce(
           (sum, p) => sum + (p.amount || 0),
           0
         );
 
-        if (totalOilAmount === 0) {
-          // 🧮 No oil payment case
-          if (hasPaymentAmount === baseDriverExpenses) {
-            return 0;
-          } else if (
-            hasPaymentAmount < baseDriverExpenses &&
-            hasPaymentAmount > 0
-          ) {
-            return baseDriverExpenses - hasPaymentAmount;
-          } else {
-            return baseDriverExpenses;
-          }
-        } else {
-          // 🛢️ Oil payment exists
-          if (hasPaymentAmount === 0) {
-            return baseDriverExpenses + totalOilAmount;
-          } else if (hasPaymentAmount < baseDriverExpenses) {
-            return totalOilAmount + (baseDriverExpenses - hasPaymentAmount);
-          } else {
-            return totalOilAmount;
-          }
-        }
-      })();
+        // Calculate amountPayable based on the cases:
+        // Formula: amountPayable = totalOilAmount + (baseDriverExpenses - onDutyPaid)
+        // This can be negative if onDutyPaid > baseDriverExpenses
+        const amountPayable = totalOilAmount + (baseDriverExpenses - onDutyPaid);
+
 
 
 
 
 
         // If finalPaid exists, show finalPaid - amountPayable, otherwise show amountPayable
-        // Don't show negative values
+        // Allow negative values (as per case 6: oil + (-500))
         const displayAmountPayable = b.finalPaid
-          ? Math.max(0, b.finalPaid - amountPayable)
-          : Math.max(0, amountPayable);
+          ? b.finalPaid - amountPayable
+          : amountPayable;
 
         return {
           booking: b,
@@ -178,9 +185,8 @@ export const DriverReport: React.FC = () => {
         .filter(({ booking }) => !booking.finalPaid || booking.finalPaid === 0) // exclude if finalPaid exists and > 0
         .map(({ booking, amountPayable }) => ({
           value: booking.id,
-          label: `${new Date(booking.startDate).toLocaleDateString()} - ${
-            booking.pickupLocation
-          } to ${booking.dropLocation} - ₹${formatMoney(amountPayable)}`,
+          label: `${new Date(booking.startDate).toLocaleDateString()} - ${booking.pickupLocation
+            } to ${booking.dropLocation} - ₹${formatMoney(amountPayable)}`,
         })),
     [bookingPayables]
   );
@@ -270,7 +276,7 @@ export const DriverReport: React.FC = () => {
           (sum, p) => sum + (p.amount || 0),
           0
         );
-        const advanceToDriver = advanceReceived ;
+        const advanceToDriver = advanceReceived;
         const driverReceived = advanceReceived + paymentTotal;
         // const driverReceived = payments
         //   .filter(
@@ -286,18 +292,13 @@ export const DriverReport: React.FC = () => {
         const paymentsForBooking = (paymentsForDriver || []).filter(
           (p) => p.bookingId === b.id
         );
-        const totalPaymentAmount = paymentsForBooking.reduce(
-          (sum, p) => sum + (p.amount || 0),
-          0
-        );
 
-        
         const totalOilAmount = paymentsForBooking
           // exclude entries with "Final payment" in description
           .filter((p) => !p.description?.toLowerCase().includes("final payment"))
           // then sum the amounts
           .reduce((sum, p) => sum + (p.amount || 0), 0);
-          
+
         const driverExpenses = baseDriverExpenses + totalOilAmount;
         // console.log("driverExpenses 2", driverExpenses);
 
@@ -328,50 +329,58 @@ export const DriverReport: React.FC = () => {
         //   }
         // })();
 
-        const amountPayable = (() => {
-          const hasPayments = (b.payments || []).length > 0;
-          const hasPaymentAmount = (b.payments || []).reduce(
-            (sum, p) => sum + (p.amount || 0),
-            0
-          );
+        // const amountPayable = (() => {
+        //   const hasPayments = (b.payments || []).length > 0;
+        //   const hasPaymentAmount = (b.payments || []).reduce(
+        //     (sum, p) => sum + (p.amount || 0),
+        //     0
+        //   );
 
-          if (totalOilAmount === 0) {
-            // 🧮 No oil payment case
-            if (hasPaymentAmount === baseDriverExpenses) {
-              return 0;
-            } else if (
-              hasPaymentAmount < baseDriverExpenses &&
-              hasPaymentAmount > 0
-            ) {
-              return baseDriverExpenses - hasPaymentAmount;
-            } else {
-              return baseDriverExpenses;
-            }
-          } else {
-            // 🛢️ Oil payment exists
-            if (hasPaymentAmount === 0) {
-              return baseDriverExpenses + totalOilAmount;
-            } else if (hasPaymentAmount < baseDriverExpenses) {
-              return totalOilAmount + (baseDriverExpenses - hasPaymentAmount);
-            } else {
-              return totalOilAmount;
-            }
-          }
-        })();
+        //   if (totalOilAmount === 0) {
+        //     // 🧮 No oil payment case
+        //     if (hasPaymentAmount === baseDriverExpenses) {
+        //       return 0;
+        //     } else if (
+        //       hasPaymentAmount < baseDriverExpenses &&
+        //       hasPaymentAmount > 0
+        //     ) {
+        //       return baseDriverExpenses - hasPaymentAmount;
+        //     } else {
+        //       return baseDriverExpenses;
+        //     }
+        //   } else {
+        //     // 🛢️ Oil payment exists
+        //     if (hasPaymentAmount === 0) {
+        //       return baseDriverExpenses + totalOilAmount;
+        //     } else if (hasPaymentAmount < baseDriverExpenses) {
+        //       return totalOilAmount + (baseDriverExpenses - hasPaymentAmount);
+        //     } else {
+        //       return totalOilAmount;
+        //     }
+        //   }
+        // })();
+
+        const onDutyPaid = paymentTotal;
+
+        // Calculate amountPayable based on the cases:
+        // Formula: amountPayable = totalOilAmount + (baseDriverExpenses - onDutyPaid)
+        // This can be negative if onDutyPaid > baseDriverExpenses
+        const amountPayable = totalOilAmount + (baseDriverExpenses - onDutyPaid);
+
 
 
 
 
         // If finalPaid exists, show finalPaid - amountPayable, otherwise show amountPayable
-        // Don't show negative values
+        // Allow negative values (as per case 6: oil + (-500))
         const displayAmountPayable = b.finalPaid
-          ? Math.max(0, b.finalPaid - amountPayable)
-          : Math.max(0, amountPayable);
+          ? b.finalPaid - amountPayable
+          : amountPayable;
 
         // If finalPaid exists, add it to driverReceived, otherwise show only driverReceived
         const displayDriverReceived = b.finalPaid
           ? (b.finalPaid || 0) + driverReceived
-          : driverReceived ;
+          : driverReceived;
 
         return {
           id: b.id,
@@ -466,25 +475,23 @@ export const DriverReport: React.FC = () => {
         </tr></thead>
         <tbody>
           ${rows
-            .map(
-              (r) =>
-                `<tr><td>${r.sNo}</td><td>${r.bookingDate}</td><td>${
-                  r.customerName
-                }</td><td>${r.route}</td><td>${Number(r.bookingAmount).toFixed(
-                  2
-                )}</td><td>${r.driverName}</td><td>${Number(
-                  r.advanceToDriver
-                ).toFixed(2)}</td><td>${Number(r.driverExpenses).toFixed(
-                  2
-                )}</td><td>${Number(r.onDutyPaid).toFixed(
-                  2
-                )}</td><td>${Number(r.driverReceived).toFixed(
-                  2
-                )}</td><td>${Number(r.amountPayable).toFixed(2)}</td><td>${
-                  r.vehicle
-                }</td><td>${r.createdDate}</td></tr>`
-            )
-            .join("")}
+        .map(
+          (r) =>
+            `<tr><td>${r.sNo}</td><td>${r.bookingDate}</td><td>${r.customerName
+            }</td><td>${r.route}</td><td>${Number(r.bookingAmount).toFixed(
+              2
+            )}</td><td>${r.driverName}</td><td>${Number(
+              r.advanceToDriver
+            ).toFixed(2)}</td><td>${Number(r.driverExpenses).toFixed(
+              2
+            )}</td><td>${Number(r.onDutyPaid).toFixed(
+              2
+            )}</td><td>${Number(r.driverReceived).toFixed(
+              2
+            )}</td><td>${Number(r.amountPayable).toFixed(2)}</td><td>${r.vehicle
+            }</td><td>${r.createdDate}</td></tr>`
+        )
+        .join("")}
         </tbody>
       </table>`;
     const blob = new Blob([table], { type: "application/vnd.ms-excel" });
@@ -547,8 +554,7 @@ export const DriverReport: React.FC = () => {
     );
     rows.forEach((r) => {
       w.document.write(
-        `<tr><td>${r.sNo}</td><td>${r.bookingDate}</td><td>${
-          r.customerName
+        `<tr><td>${r.sNo}</td><td>${r.bookingDate}</td><td>${r.customerName
         }</td><td>${r.route}</td><td>${Number(r.bookingAmount).toFixed(
           2
         )}</td><td>${r.driverName}</td><td>${Number(r.advanceToDriver).toFixed(
@@ -557,8 +563,7 @@ export const DriverReport: React.FC = () => {
           r.onDutyPaid
         ).toFixed(2)}</td><td>${Number(
           r.driverReceived
-        ).toFixed(2)}</td><td>${Number(r.amountPayable).toFixed(2)}</td><td>${
-          r.vehicle
+        ).toFixed(2)}</td><td>${Number(r.amountPayable).toFixed(2)}</td><td>${r.vehicle
         }</td><td>${r.createdDate}</td></tr>`
       );
     });
@@ -592,15 +597,15 @@ export const DriverReport: React.FC = () => {
   // Handle payment to driver
   const handlePayToDriver = async () => {
     if (!selectedBookingId || !driverId || payAmount <= 0) return;
-    
+
     try {
       setProcessingPayment(true);
-      
+
       if (selectedBookingId === ALL_BOOKINGS_ID) {
         // Pay for all bookings
         for (const { booking } of bookingPayables) {
           if (booking.finalPaid && booking.finalPaid > 0) continue; // Skip already paid bookings
-          
+
           const amountPayable = bookingPayables.find(bp => bp.booking.id === booking.id)?.amountPayable || 0;
           if (amountPayable > 0) {
             await financeAPI.addDriverPayment(booking.id, {
@@ -609,7 +614,7 @@ export const DriverReport: React.FC = () => {
               amount: amountPayable,
               description: `Final payment for booking ${booking.pickupLocation} to ${booking.dropLocation}`,
             });
-            
+
             // Update local booking state
             updateBooking(booking.id, { finalPaid: (booking.finalPaid || 0) + amountPayable });
           }
@@ -624,20 +629,20 @@ export const DriverReport: React.FC = () => {
             amount: payAmount,
             description: `Final payment for booking ${selectedBooking.booking.pickupLocation} to ${selectedBooking.booking.dropLocation}`,
           });
-          
+
           // Update local booking state
           updateBooking(selectedBookingId, { finalPaid: (selectedBooking.booking.finalPaid || 0) + payAmount });
         }
       }
-      
+
       // Refresh data
       await generateRows();
       await fetchDriverPayments(driverId);
-      
+
       // Reset form
       setSelectedBookingId("");
       setPayAmount(0);
-      
+
     } catch (error) {
       console.error("Failed to process payment:", error);
       // You might want to add a toast notification here
