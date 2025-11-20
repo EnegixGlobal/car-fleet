@@ -1011,6 +1011,7 @@ interface RawFullBooking {
   startDate: string | Date;
   endDate: string | Date;
   vehicleId?: MaybePopulated<string>;
+  vehicleCategoryId?: MaybePopulated<string>;
   driverId?: MaybePopulated<string>;
   tariffRate: number;
   totalAmount: number;
@@ -1047,6 +1048,7 @@ export interface BookingDTO {
   startDate: string;
   endDate: string;
   vehicleId?: string;
+  vehicleCategoryId?: string;
   driverId?: string;
   tariffRate: number;
   totalAmount: number;
@@ -1154,6 +1156,25 @@ export const bookingAPI = {
       vehicleId: (typeof raw.vehicleId === "object" && raw.vehicleId?._id
         ? raw.vehicleId._id || raw.vehicleId.id
         : raw.vehicleId) as string | undefined,
+      vehicleCategoryId: (() => {
+        const explicit =
+          (typeof raw.vehicleCategoryId === "object" &&
+          raw.vehicleCategoryId?._id
+            ? raw.vehicleCategoryId._id || raw.vehicleCategoryId.id
+            : raw.vehicleCategoryId) as string | undefined;
+        if (explicit) return explicit;
+        if (raw.vehicleId && typeof raw.vehicleId === "object") {
+          const populated = raw.vehicleId as RawVehicle & {
+            categoryId?: MaybePopulated<string>;
+          };
+          if (populated.categoryId) {
+            return typeof populated.categoryId === "object"
+              ? populated.categoryId._id || populated.categoryId.id
+              : (populated.categoryId as string);
+          }
+        }
+        return undefined;
+      })(),
       driverId: (typeof raw.driverId === "object" && raw.driverId?._id
         ? raw.driverId._id || raw.driverId.id
         : raw.driverId) as string | undefined,
@@ -1571,15 +1592,18 @@ function normalizeBookingDates<T extends Record<string, unknown>>(obj: T): T {
   const copy: Record<string, unknown> = { ...obj };
   ["startDate", "endDate"].forEach((key) => {
     const value = copy[key];
-    if (
-      typeof value === "string" &&
-      value.length === 16 &&
-      value.includes("T")
-    ) {
-      // datetime-local (no seconds)
-      copy[key] = new Date(value + ":00.000Z").toISOString();
-    } else if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
-      copy[key] = new Date(value + "T00:00:00.000Z").toISOString();
+    if (typeof value !== "string") {
+      return;
+    }
+    const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(value);
+    const isDateTimeLocal = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/.test(
+      value
+    );
+    if (isDateOnly || (isDateTimeLocal && !value.endsWith("Z"))) {
+      const date = new Date(isDateOnly ? `${value}T00:00` : value);
+      if (!Number.isNaN(date.getTime())) {
+        copy[key] = date.toISOString();
+      }
     }
   });
   return copy as T;

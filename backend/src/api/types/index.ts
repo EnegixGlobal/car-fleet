@@ -211,6 +211,7 @@ export interface IBooking {
   startDate: Date;
   endDate: Date;
   vehicleId?: Types.ObjectId;
+  vehicleCategoryId?: Types.ObjectId;
   driverId?: Types.ObjectId;
   tariffRate: number;
   totalAmount: number;

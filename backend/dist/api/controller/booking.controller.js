@@ -51,7 +51,9 @@ const createBooking = (req, res) => __awaiter(void 0, void 0, void 0, function* 
     const data = validation_1.bookingSchema.parse(req.body);
     const bookingData = Object.assign(Object.assign({}, data), { customerId: data.customerId
             ? new mongoose_1.Types.ObjectId(data.customerId)
-            : undefined, companyId: data.companyId ? new mongoose_1.Types.ObjectId(data.companyId) : undefined, vehicleId: data.vehicleId ? new mongoose_1.Types.ObjectId(data.vehicleId) : undefined, driverId: data.driverId ? new mongoose_1.Types.ObjectId(data.driverId) : undefined, startDate: new Date(data.startDate), endDate: new Date(data.endDate), status: "booked", dutySlipSubmitted: false, dutySlipSubmittedToCompany: false });
+            : undefined, companyId: data.companyId ? new mongoose_1.Types.ObjectId(data.companyId) : undefined, vehicleId: data.vehicleId ? new mongoose_1.Types.ObjectId(data.vehicleId) : undefined, vehicleCategoryId: data.vehicleCategoryId
+            ? new mongoose_1.Types.ObjectId(data.vehicleCategoryId)
+            : undefined, driverId: data.driverId ? new mongoose_1.Types.ObjectId(data.driverId) : undefined, startDate: new Date(data.startDate), endDate: new Date(data.endDate), status: "booked", dutySlipSubmitted: false, dutySlipSubmittedToCompany: false });
     const booking = yield service.createBooking(bookingData);
     res.status(201).json(booking);
 });
@@ -85,6 +87,8 @@ const updateBooking = (req, res) => __awaiter(void 0, void 0, void 0, function* 
         updateData.companyId = new mongoose_1.Types.ObjectId(updateData.companyId);
     if (updateData.vehicleId)
         updateData.vehicleId = new mongoose_1.Types.ObjectId(updateData.vehicleId);
+    if (updateData.vehicleCategoryId)
+        updateData.vehicleCategoryId = new mongoose_1.Types.ObjectId(updateData.vehicleCategoryId);
     if (updateData.driverId)
         updateData.driverId = new mongoose_1.Types.ObjectId(updateData.driverId);
     if (updateData.customerId)

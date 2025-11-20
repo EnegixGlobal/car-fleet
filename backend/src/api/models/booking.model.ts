@@ -64,6 +64,7 @@ const bookingSchema = new Schema<IBooking>({
   startDate: { type: Date, required: true, index: true },
   endDate: { type: Date, required: true },
   vehicleId: { type: Schema.Types.ObjectId, ref: "Vehicle" },
+  vehicleCategoryId: { type: Schema.Types.ObjectId, ref: "VehicleCategory" },
   driverId: { type: Schema.Types.ObjectId, ref: "Driver" },
   tariffRate: { type: Number, required: true },
   totalAmount: { type: Number, required: true },

@@ -11,7 +11,7 @@ import { Select } from "../../components/ui/Select";
 import { Icon } from "../../components/ui/Icon";
 import { format, parseISO } from "date-fns";
 import { UploadedFile, Expense, Booking, DriverPayment } from "../../types";
-import { bookingAPI } from "../../services/api";
+import { bookingAPI, vehicleCategoryAPI, VehicleCategoryDTO } from "../../services/api";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
 
@@ -41,8 +41,17 @@ export const BookingDetails: React.FC = () => {
   const [editingDriverPayment, setEditingDriverPayment] =
     useState<DriverPayment | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [vehicleCategories, setVehicleCategories] = useState<VehicleCategoryDTO[]>([]);
 
   const booking = bookings.find((b) => b.id === id);
+
+  // Load vehicle categories
+  useEffect(() => {
+    vehicleCategoryAPI
+      .list()
+      .then(setVehicleCategories)
+      .catch(() => setVehicleCategories([]));
+  }, []);
 
   // If booking exists but has driverId/vehicleId and we haven't loaded those entities yet, try a one-time direct fetch to ensure latest state
   useEffect(() => {
@@ -561,6 +570,27 @@ export const BookingDetails: React.FC = () => {
                     )}
                   </div>
                 </div>
+
+                <div className="flex items-center space-x-3">
+                  <Icon name="file" className="h-5 w-5 text-gray-400" />
+                  <div>
+                    <p className="font-medium">Vehicle Category</p>
+                    <p className="text-sm text-gray-600">
+                      {booking?.vehicleCategoryId
+                        ? (() => {
+                            const category = vehicleCategories.find(
+                              (c) => c.id === booking.vehicleCategoryId
+                            );
+                            return category
+                              ? category.description
+                                ? `${category.name} - ${category.description}`
+                                : category.name
+                              : "Not specified";
+                          })()
+                        : "Not assigned"}
+                    </p>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -651,7 +681,7 @@ export const BookingDetails: React.FC = () => {
           <Card>
             <CardHeader>
               <div className="flex justify-between items-center">
-                <h3 className="text-lg font-medium text-gray-900">Payments</h3>
+                <h3 className="text-lg font-medium text-gray-900">On Duty Payments</h3>
                 {hasRole(["admin", "accountant", "dispatcher"]) && (
                   <Button
                     size="sm"

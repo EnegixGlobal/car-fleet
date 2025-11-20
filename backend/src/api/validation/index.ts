@@ -145,6 +145,7 @@ export const bookingSchema = z.object({
   startDate: z.string().datetime("Invalid date"),
   endDate: z.string().datetime("Invalid date"),
   vehicleId: z.string().optional(),
+  vehicleCategoryId: z.string().optional(),
   driverId: z.string().optional(),
   tariffRate: z.number().min(0, "Positive rate"),
   totalAmount: z.number().min(0, "Positive amount"),

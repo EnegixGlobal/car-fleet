@@ -28,6 +28,9 @@ export const createBooking = async (req: AuthRequest, res: Response) => {
       : undefined,
     companyId: data.companyId ? new Types.ObjectId(data.companyId) : undefined,
     vehicleId: data.vehicleId ? new Types.ObjectId(data.vehicleId) : undefined,
+    vehicleCategoryId: data.vehicleCategoryId
+      ? new Types.ObjectId(data.vehicleCategoryId)
+      : undefined,
     driverId: data.driverId ? new Types.ObjectId(data.driverId) : undefined,
     startDate: new Date(data.startDate),
     endDate: new Date(data.endDate),
@@ -68,6 +71,10 @@ export const updateBooking = async (req: AuthRequest, res: Response) => {
     updateData.companyId = new Types.ObjectId(updateData.companyId);
   if (updateData.vehicleId)
     updateData.vehicleId = new Types.ObjectId(updateData.vehicleId);
+  if (updateData.vehicleCategoryId)
+    updateData.vehicleCategoryId = new Types.ObjectId(
+      updateData.vehicleCategoryId
+    );
   if (updateData.driverId)
     updateData.driverId = new Types.ObjectId(updateData.driverId);
   if (updateData.customerId)

@@ -144,7 +144,10 @@ export const DriverReport: React.FC = () => {
         // Calculate amountPayable based on the cases:
         // Formula: amountPayable = totalOilAmount + (baseDriverExpenses - onDutyPaid)
         // This can be negative if onDutyPaid > baseDriverExpenses
-        const amountPayable = totalOilAmount + (baseDriverExpenses - onDutyPaid);
+        // const amountPayable = totalOilAmount + (baseDriverExpenses - onDutyPaid);
+        const amountPayable =
+  (advanceReceived + onDutyPaid) - (totalOilAmount + baseDriverExpenses);
+
 
 
 
@@ -277,7 +280,8 @@ export const DriverReport: React.FC = () => {
           0
         );
         const advanceToDriver = advanceReceived;
-        const driverReceived = advanceReceived + paymentTotal;
+        // const driverReceived = advanceReceived + paymentTotal;
+        const driverReceived =  0;
         // const driverReceived = payments
         //   .filter(
         //     (p) =>
@@ -365,7 +369,10 @@ export const DriverReport: React.FC = () => {
         // Calculate amountPayable based on the cases:
         // Formula: amountPayable = totalOilAmount + (baseDriverExpenses - onDutyPaid)
         // This can be negative if onDutyPaid > baseDriverExpenses
-        const amountPayable = totalOilAmount + (baseDriverExpenses - onDutyPaid);
+        // const amountPayable = totalOilAmount + (baseDriverExpenses - onDutyPaid);
+        const amountPayable =
+  (advanceReceived + onDutyPaid) - (totalOilAmount + baseDriverExpenses);
+
 
 
 
