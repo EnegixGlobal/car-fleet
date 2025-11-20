@@ -61,6 +61,7 @@ const bookingSchema = new mongoose_1.Schema({
     startDate: { type: Date, required: true, index: true },
     endDate: { type: Date, required: true },
     vehicleId: { type: mongoose_1.Schema.Types.ObjectId, ref: "Vehicle" },
+    vehicleCategoryId: { type: mongoose_1.Schema.Types.ObjectId, ref: "VehicleCategory" },
     driverId: { type: mongoose_1.Schema.Types.ObjectId, ref: "Driver" },
     tariffRate: { type: Number, required: true },
     totalAmount: { type: Number, required: true },

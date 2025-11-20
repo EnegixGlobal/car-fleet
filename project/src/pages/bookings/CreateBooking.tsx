@@ -24,6 +24,7 @@ const bookingSchema = z.object({
   cityOfWork: z.string().optional(),
   startDate: z.string().min(1, 'Start date is required'),
   endDate: z.string().min(1, 'End date is required'),
+  vehicleCategoryId: z.string().optional(),
   vehicleId: z.string().optional(),
   driverId: z.string().optional(),
   tariffRate: z.number().min(0, 'Tariff rate must be positive'),
@@ -33,6 +34,15 @@ const bookingSchema = z.object({
 });
 
 type BookingFormData = z.infer<typeof bookingSchema>;
+
+const toISOFromLocalInput = (value: string) => {
+  if (!value) return value;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  return date.toISOString();
+};
 
 export const CreateBooking: React.FC = () => {
   const navigate = useNavigate();
@@ -70,6 +80,9 @@ export const CreateBooking: React.FC = () => {
       tariffRate: 0,
       totalAmount: 0,
       advanceReceived: 0,
+      vehicleCategoryId: undefined,
+      vehicleId: undefined,
+      driverId: undefined,
   }
   });
 
@@ -105,9 +118,17 @@ export const CreateBooking: React.FC = () => {
     try {
       const normalizedCompanyId =
         data.bookingSource === 'individual' ? undefined : data.companyId || undefined;
+      const normalizedDates = {
+        startDate: toISOFromLocalInput(data.startDate),
+        endDate: toISOFromLocalInput(data.endDate),
+      };
       const bookingData = {
         ...data,
+        ...normalizedDates,
         companyId: normalizedCompanyId,
+        vehicleCategoryId: data.vehicleCategoryId || undefined,
+        vehicleId: data.vehicleId || undefined,
+        driverId: data.driverId || undefined,
         balance: data.totalAmount - data.advanceReceived,
         status: 'booked' as const,
         expenses: [],
@@ -170,6 +191,11 @@ export const CreateBooking: React.FC = () => {
   const companyOptions = companies.map(company => ({
     value: company.id,
     label: company.name
+  }));
+
+  const vehicleCategoryOptions = vehicleCategories.map(cat => ({
+    value: cat.id,
+    label: cat.description ? `${cat.name} - (${cat.description})` : cat.name
   }));
 
   return (
@@ -369,7 +395,13 @@ export const CreateBooking: React.FC = () => {
             </div>
 
             {/* Vehicle and Driver Assignment */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Select
+                {...register('vehicleCategoryId')}
+                label="Vehicle Category (Optional)"
+                placeholder="Select vehicle category"
+                options={vehicleCategoryOptions}
+              />
               <Select
                 {...register('vehicleId')}
                 label="Assign Vehicle (Optional)"

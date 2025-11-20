@@ -128,6 +128,7 @@ exports.bookingSchema = zod_1.z.object({
     startDate: zod_1.z.string().datetime("Invalid date"),
     endDate: zod_1.z.string().datetime("Invalid date"),
     vehicleId: zod_1.z.string().optional(),
+    vehicleCategoryId: zod_1.z.string().optional(),
     driverId: zod_1.z.string().optional(),
     tariffRate: zod_1.z.number().min(0, "Positive rate"),
     totalAmount: zod_1.z.number().min(0, "Positive amount"),

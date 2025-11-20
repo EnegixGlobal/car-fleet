@@ -12,7 +12,7 @@ import { Select } from '../../components/ui/Select';
 import { Icon } from '../../components/ui/Icon';
 import { Booking } from '../../types';
 import { Modal } from '../../components/ui/Modal';
-import { cityAPI } from '../../services/api';
+import { cityAPI, vehicleCategoryAPI, VehicleCategoryDTO } from '../../services/api';
 
 const bookingSchema = z.object({
   customerName: z.string().min(1, 'Customer name is required'),
@@ -25,6 +25,7 @@ const bookingSchema = z.object({
   cityOfWork: z.string().optional(),
   startDate: z.string(),
   endDate: z.string(),
+  vehicleCategoryId: z.string().optional(),
   vehicleId: z.string().optional(),
   driverId: z.string().optional(),
   tariffRate: z.number().min(0),
@@ -35,11 +36,31 @@ const bookingSchema = z.object({
 
 type BookingFormData = z.infer<typeof bookingSchema>;
 
+const toDateTimeLocalInput = (value?: string) => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value.length >= 16 ? value.slice(0, 16) : value;
+  }
+  const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return offsetDate.toISOString().slice(0, 16);
+};
+
+const toISOFromLocalInput = (value: string) => {
+  if (!value) return value;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  return date.toISOString();
+};
+
 export const EditBooking: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { bookings, updateBooking, drivers, vehicles, companies } = useApp();
   const [cities, setCities] = React.useState<string[]>([]);
+  const [vehicleCategories, setVehicleCategories] = React.useState<VehicleCategoryDTO[]>([]);
   const sanitizeCities = React.useCallback((raw: string[]): string[] => {
     const cleaned = raw.map(c => (c||'').trim())
       .filter(c => c && c.toLowerCase() !== 'select city')
@@ -72,6 +93,7 @@ export const EditBooking: React.FC = () => {
       cityOfWork: '',
       startDate: '',
       endDate: '',
+      vehicleCategoryId: undefined,
       vehicleId: undefined,
       driverId: undefined,
       tariffRate: 0,
@@ -100,6 +122,23 @@ export const EditBooking: React.FC = () => {
     return () => { cancelled = true; };
   }, [sanitizeCities]);
 
+  React.useEffect(() => {
+    let cancelled = false;
+    vehicleCategoryAPI
+      .list()
+      .then((list) => {
+        if (cancelled) return;
+        setVehicleCategories(list);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setVehicleCategories([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // When booking changes (async load), reset entire form so RHF picks up values.
   React.useEffect(() => {
     if (!booking) return;
@@ -112,8 +151,9 @@ export const EditBooking: React.FC = () => {
       dropLocation: booking.dropLocation,
       journeyType: booking.journeyType as 'outstation-one-way'|'outstation'|'local-outstation'|'local'|'transfer',
       cityOfWork: booking.cityOfWork || '',
-      startDate: booking.startDate.slice(0,16),
-      endDate: booking.endDate.slice(0,16),
+      startDate: toDateTimeLocalInput(booking.startDate),
+      endDate: toDateTimeLocalInput(booking.endDate),
+      vehicleCategoryId: booking.vehicleCategoryId,
       vehicleId: booking.vehicleId,
       driverId: booking.driverId,
       tariffRate: booking.tariffRate,
@@ -167,10 +207,16 @@ export const EditBooking: React.FC = () => {
   const onSubmit = async (data: BookingFormData) => {
     const normalizedCompanyId =
       data.bookingSource === 'individual' ? undefined : data.companyId || undefined;
+    const normalizedDates = {
+      startDate: toISOFromLocalInput(data.startDate),
+      endDate: toISOFromLocalInput(data.endDate),
+    };
     await updateBooking(booking.id, {
       ...data,
+      ...normalizedDates,
       companyId: normalizedCompanyId,
       balance: data.totalAmount - data.advanceReceived,
+      vehicleCategoryId: data.vehicleCategoryId || undefined,
       driverId: data.driverId || undefined,
       vehicleId: data.vehicleId || undefined,
     } as Partial<Booking>);
@@ -178,13 +224,36 @@ export const EditBooking: React.FC = () => {
     navigate(`/bookings/${booking.id}`);
   };
 
+  const mergedVehicleCategories = React.useMemo(() => {
+    const map = new Map(vehicleCategories.map(cat => [cat.id, cat]));
+    if (booking?.vehicleCategoryId && !map.has(booking.vehicleCategoryId)) {
+      const fallbackVehicle = vehicles.find(v => v.categoryId === booking.vehicleCategoryId);
+      map.set(booking.vehicleCategoryId, {
+        id: booking.vehicleCategoryId,
+        name: fallbackVehicle?.category || 'Selected category',
+        description: fallbackVehicle?.categoryDescription,
+        createdAt: fallbackVehicle?.createdAt || new Date().toISOString(),
+      });
+    }
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [vehicleCategories, booking?.vehicleCategoryId, vehicles]);
+
   const driverOptions = drivers.filter(d => d.status === 'active').map(d => ({ value: d.id, label: d.name }));
+  const vehicleCategoryOptions = mergedVehicleCategories.map(cat => ({
+    value: cat.id,
+    label: cat.description ? `${cat.name} - (${cat.description})` : cat.name
+  }));
   const vehicleOptions = vehicles
     .filter(v => v.status === 'active')
-    .map(vehicle => ({
-      value: vehicle.id,
-      label: `${vehicle.registrationNumber} (${vehicle.category}) ${vehicle.categoryDescription ? ` - ${vehicle.categoryDescription}` : ''}`
-    }));
+    .map(vehicle => {
+      const categoryInfo = mergedVehicleCategories.find(c => c.id === vehicle.categoryId);
+      const categoryLabel = categoryInfo?.name || vehicle.category || 'Uncategorized';
+      const descriptionLabel = categoryInfo?.description ? ` - ${categoryInfo.description}` : '';
+      return {
+        value: vehicle.id,
+        label: `${vehicle.registrationNumber} (${categoryLabel})${descriptionLabel}`,
+      };
+    });
   const companyOptions = companies.map(c => ({ value: c.id, label: c.name }));
 
   const handleAddCity = async (name: string) => {
@@ -262,7 +331,13 @@ export const EditBooking: React.FC = () => {
                 </Button>
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Select
+                {...register('vehicleCategoryId')}
+                label="Vehicle Category (Optional)"
+                placeholder="Select vehicle category"
+                options={vehicleCategoryOptions}
+              />
               <Select {...register('vehicleId')} label="Vehicle" placeholder="Select vehicle" options={vehicleOptions} />
               <Select {...register('driverId')} label="Driver" placeholder="Select driver" options={driverOptions} />
             </div>

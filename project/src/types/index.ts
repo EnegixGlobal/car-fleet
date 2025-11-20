@@ -149,6 +149,7 @@ export interface Booking {
   startDate: string;
   endDate: string;
   vehicleId?: string;
+  vehicleCategoryId?: string;
   driverId?: string;
   tariffRate: number;
   totalAmount: number;

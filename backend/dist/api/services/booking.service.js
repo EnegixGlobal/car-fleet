@@ -19,7 +19,7 @@ const createBooking = (data) => __awaiter(void 0, void 0, void 0, function* () {
                 changedBy: 'System', // or current user
             }] }));
     yield booking.save();
-    return booking.populate('companyId driverId vehicleId customerId');
+    return booking.populate('companyId driverId vehicleId vehicleCategoryId customerId');
 });
 exports.createBooking = createBooking;
 const getBookings = (page, limit, filters, user) => __awaiter(void 0, void 0, void 0, function* () {
@@ -51,7 +51,7 @@ const getBookings = (page, limit, filters, user) => __awaiter(void 0, void 0, vo
     }
     const skip = (page - 1) * limit;
     const [bookings, total] = yield Promise.all([
-        models_1.Booking.find(query).populate('companyId driverId vehicleId customerId').skip(skip).limit(limit).sort({ startDate: -1 }),
+        models_1.Booking.find(query).populate('companyId driverId vehicleId vehicleCategoryId customerId').skip(skip).limit(limit).sort({ startDate: -1 }),
         models_1.Booking.countDocuments(query),
     ]);
     return { bookings, total };
@@ -69,7 +69,7 @@ const getBookingById = (id, user) => __awaiter(void 0, void 0, void 0, function*
             return null;
         filter.customerId = user.customerId;
     }
-    return models_1.Booking.findOne(filter).populate('companyId driverId vehicleId customerId');
+    return models_1.Booking.findOne(filter).populate('companyId driverId vehicleId vehicleCategoryId customerId');
 });
 exports.getBookingById = getBookingById;
 const updateBooking = (id, updates) => __awaiter(void 0, void 0, void 0, function* () {
@@ -88,7 +88,7 @@ const updateBooking = (id, updates) => __awaiter(void 0, void 0, void 0, functio
         updateDoc.status = updates.status;
         updateDoc.$push = { statusHistory: { status: updates.status, timestamp: new Date(), changedBy: 'System' } };
     }
-    return models_1.Booking.findByIdAndUpdate(id, updateDoc, { new: true, runValidators: true }).populate('companyId driverId vehicleId customerId');
+    return models_1.Booking.findByIdAndUpdate(id, updateDoc, { new: true, runValidators: true }).populate('companyId driverId vehicleId vehicleCategoryId customerId');
 });
 exports.updateBooking = updateBooking;
 const deleteBooking = (id) => __awaiter(void 0, void 0, void 0, function* () {
@@ -96,7 +96,7 @@ const deleteBooking = (id) => __awaiter(void 0, void 0, void 0, function* () {
 });
 exports.deleteBooking = deleteBooking;
 const addExpense = (bookingId, expense) => __awaiter(void 0, void 0, void 0, function* () {
-    return models_1.Booking.findByIdAndUpdate(bookingId, { $push: { expenses: expense } }, { new: true }).populate('companyId driverId vehicleId customerId');
+    return models_1.Booking.findByIdAndUpdate(bookingId, { $push: { expenses: expense } }, { new: true }).populate('companyId driverId vehicleId vehicleCategoryId customerId');
 });
 exports.addExpense = addExpense;
 const updateExpense = (bookingId, expenseId, updates) => __awaiter(void 0, void 0, void 0, function* () {
@@ -108,11 +108,11 @@ const updateExpense = (bookingId, expenseId, updates) => __awaiter(void 0, void 
             'expenses.$.description': updates.description,
             'expenses.$.receipt': updates.receipt,
         },
-    }, { new: true, runValidators: true }).populate('companyId driverId vehicleId customerId');
+    }, { new: true, runValidators: true }).populate('companyId driverId vehicleId vehicleCategoryId customerId');
 });
 exports.updateExpense = updateExpense;
 const deleteExpense = (bookingId, expenseId) => __awaiter(void 0, void 0, void 0, function* () {
-    return models_1.Booking.findByIdAndUpdate(bookingId, { $pull: { expenses: { _id: expenseId } } }, { new: true }).populate('companyId driverId vehicleId customerId');
+    return models_1.Booking.findByIdAndUpdate(bookingId, { $pull: { expenses: { _id: expenseId } } }, { new: true }).populate('companyId driverId vehicleId vehicleCategoryId customerId');
 });
 exports.deleteExpense = deleteExpense;
 const updateStatus = (bookingId, status, changedBy, user) => __awaiter(void 0, void 0, void 0, function* () {
@@ -128,7 +128,7 @@ const updateStatus = (bookingId, status, changedBy, user) => __awaiter(void 0, v
             return null;
         filter.customerId = user.customerId;
     }
-    return models_1.Booking.findOneAndUpdate(filter, { status, $push: { statusHistory: change } }, { new: true }).populate('companyId driverId vehicleId customerId');
+    return models_1.Booking.findOneAndUpdate(filter, { status, $push: { statusHistory: change } }, { new: true }).populate('companyId driverId vehicleId vehicleCategoryId customerId');
 });
 exports.updateStatus = updateStatus;
 const uploadDutySlips = (bookingId, files, uploadedBy) => __awaiter(void 0, void 0, void 0, function* () {
@@ -138,15 +138,15 @@ const uploadDutySlips = (bookingId, files, uploadedBy) => __awaiter(void 0, void
         uploadedAt: new Date(),
         description: `Duty slip uploaded at ${new Date().toISOString()}`,
     }));
-    return models_1.Booking.findByIdAndUpdate(bookingId, { $push: { dutySlips: { $each: dutySlips } } }, { new: true }).populate('companyId driverId vehicleId customerId');
+    return models_1.Booking.findByIdAndUpdate(bookingId, { $push: { dutySlips: { $each: dutySlips } } }, { new: true }).populate('companyId driverId vehicleId vehicleCategoryId customerId');
 });
 exports.uploadDutySlips = uploadDutySlips;
 const removeDutySlip = (bookingId, dutySlipPath) => __awaiter(void 0, void 0, void 0, function* () {
-    return models_1.Booking.findByIdAndUpdate(bookingId, { $pull: { dutySlips: { path: dutySlipPath } } }, { new: true }).populate('companyId driverId vehicleId customerId');
+    return models_1.Booking.findByIdAndUpdate(bookingId, { $pull: { dutySlips: { path: dutySlipPath } } }, { new: true }).populate('companyId driverId vehicleId vehicleCategoryId customerId');
 });
 exports.removeDutySlip = removeDutySlip;
 const addPayment = (bookingId, payment) => __awaiter(void 0, void 0, void 0, function* () {
-    return models_1.Booking.findByIdAndUpdate(bookingId, { $push: { payments: payment } }, { new: true }).populate('companyId driverId vehicleId customerId');
+    return models_1.Booking.findByIdAndUpdate(bookingId, { $push: { payments: payment } }, { new: true }).populate('companyId driverId vehicleId vehicleCategoryId customerId');
 });
 exports.addPayment = addPayment;
 const listPayments = (bookingId) => __awaiter(void 0, void 0, void 0, function* () {
@@ -162,10 +162,10 @@ const updatePayment = (bookingId, paymentId, updates) => __awaiter(void 0, void 
             'payments.$.collectedBy': updates.collectedBy,
             'payments.$.paidOn': updates.paidOn,
         },
-    }, { new: true, runValidators: true }).populate('companyId driverId vehicleId customerId');
+    }, { new: true, runValidators: true }).populate('companyId driverId vehicleId vehicleCategoryId customerId');
 });
 exports.updatePayment = updatePayment;
 const deletePayment = (bookingId, paymentId) => __awaiter(void 0, void 0, void 0, function* () {
-    return models_1.Booking.findByIdAndUpdate(bookingId, { $pull: { payments: { _id: paymentId } } }, { new: true }).populate('companyId driverId vehicleId customerId');
+    return models_1.Booking.findByIdAndUpdate(bookingId, { $pull: { payments: { _id: paymentId } } }, { new: true }).populate('companyId driverId vehicleId vehicleCategoryId customerId');
 });
 exports.deletePayment = deletePayment;
