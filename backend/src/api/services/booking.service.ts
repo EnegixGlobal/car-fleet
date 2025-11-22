@@ -1,5 +1,5 @@
 // src/services/booking.service.ts
-import { Booking } from '../models';
+import { Booking, Payment } from '../models';
 import { AuthRequest, IBooking } from '../types';
 
 export const createBooking = async (data: Omit<IBooking, '_id' | 'createdAt' | 'statusHistory' | 'expenses' | 'dutySlips' | 'billed' | 'balance'>) => {
@@ -87,6 +87,9 @@ export const updateBooking = async (id: string, updates: Partial<IBooking>) => {
 };
 
 export const deleteBooking = async (id: string) => {
+  // Delete all driver payments associated with this booking
+  await Payment.deleteMany({ bookingId: id, entityType: 'driver' });
+  // Delete the booking
   return Booking.findByIdAndDelete(id);
 };
 
