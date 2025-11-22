@@ -10,10 +10,30 @@ import { Input } from "../../components/ui/Input";
 import { Select } from "../../components/ui/Select";
 import { Icon } from "../../components/ui/Icon";
 import { format, parseISO } from "date-fns";
-import { UploadedFile, Expense, Booking, DriverPayment } from "../../types";
+import { UploadedFile, Expense, Booking, DriverPayment, DriverFinancePayment } from "../../types";
 import { bookingAPI, vehicleCategoryAPI, VehicleCategoryDTO } from "../../services/api";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
+
+// Helper functions for driver payment calculations (similar to DriverReport.tsx)
+const isTripSettlementPayment = (payment: DriverPayment | DriverFinancePayment) => {
+  const description = payment.description?.toLowerCase() || "";
+  return description.includes("final payment") || description.includes("refund");
+};
+
+const sumOperationalDriverPayments = (payments: DriverPayment[]) =>
+  payments.reduce((sum, payment) => {
+    if (isTripSettlementPayment(payment)) return sum;
+    return sum + (payment.amount || 0);
+  }, 0);
+
+const getNetSettlementAmount = (payments: DriverPayment[]) =>
+  payments.reduce((sum, payment) => {
+    if (!isTripSettlementPayment(payment)) return sum;
+    const amount = payment.amount || 0;
+    // For driver payments, type "paid" means we paid to driver, "received" means refund
+    return sum + (payment.type === "received" ? -amount : amount);
+  }, 0);
 
 export const BookingDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -386,24 +406,31 @@ export const BookingDetails: React.FC = () => {
     (sum, p) => sum + p.amount,
     0
   );
-  // const totalDriverPayments = driverPayments.reduce((s, p) => s + p.amount, 0);
 
+  // Calculate driver payment amounts (similar to DriverReport.tsx)
+  const totalOilAmount = sumOperationalDriverPayments(driverPayments);
+  const netSettlement = getNetSettlementAmount(driverPayments);
+  const hasSettlementEntries = driverPayments.some(isTripSettlementPayment);
 
-  const finalPayment = driverPayments.find(p =>
-    p.description?.toLowerCase().includes("final payment")
-  );
+  // Calculate amount payable: (expenses + oil) - (advance + onDutyPaid) - netSettlement
+  const advance = booking.advanceReceived || 0;
+  const onduty = totalPayments || 0;
+  const expense = totalExpenses || 0;
+  const oil = totalOilAmount || 0;
+
+  let amountPayable = (expense + oil) - (advance + onduty);
+  if (amountPayable === 0) amountPayable = 0;
   
-  let totalDriverPayments;
-  
-  if (finalPayment) {
-    // Agar final payment hai, to sirf uska amount dikhana
-    totalDriverPayments = finalPayment.amount;
-  } else {
-    // Agar final payment nahi hai, to sab normal payments ka sum dikhana
-    totalDriverPayments = driverPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
-  }
-  
-  console.log("Total Driver Payment:", totalDriverPayments);
+  // Subtract net settlement to get remaining payable
+  const displayAmountPayable = amountPayable - netSettlement;
+
+  // Calculate driver received (from settlement payments or finalPaid)
+  const driverReceived = hasSettlementEntries
+    ? netSettlement
+    : (booking.finalPaid || 0);
+
+  // Calculate total driver payments for display (all payments including settlement)
+  const totalDriverPayments = driverPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
   
 
   return (
@@ -1040,12 +1067,34 @@ export const BookingDetails: React.FC = () => {
               <div className="flex justify-between">
                 <span className="text-gray-600">Expenses</span>
                 <span className="font-medium">
-                  ₹{totalExpenses.toLocaleString()}
+                  ₹{(totalExpenses + totalOilAmount).toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
                 </span>
               </div>
               <div className="border-t pt-2 flex justify-between font-semibold">
-                <span>Balance</span>
-                <span>₹{(booking.balance - totalPayments).toLocaleString()}</span>
+                <span >Driver Received</span>
+                <span className="font-medium">
+                  ₹{driverReceived.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </span>
+              </div>
+              <div className="flex justify-between items-center font-semibold">
+                <span>Balance {booking.settled && (
+                    <Badge variant="completed" className="text-xs">
+                      Settled
+                    </Badge>
+                  )}</span>
+                
+                <div className="flex items-center gap-2">
+                  <span>₹{displayAmountPayable.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}</span>
+                </div>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-gray-600">Billing Status</span>
