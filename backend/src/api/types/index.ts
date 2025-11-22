@@ -224,6 +224,7 @@ export interface IBooking {
   payments?: IBookingPayment[];
   // Total amount finally paid to driver for this booking
   finalPaid?: number;
+  settled?: boolean;
   billed: boolean;
   dutySlipSubmitted: boolean;
   dutySlipSubmittedToCompany: boolean;

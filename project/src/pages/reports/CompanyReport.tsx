@@ -16,6 +16,25 @@ import type {
 } from "../../types";
 import { financeAPI } from "../../services/api";
 
+const isTripSettlementPayment = (payment: DriverFinancePayment) => {
+  const description = payment.description?.toLowerCase() || "";
+  return description.includes("final payment") || description.includes("refund");
+};
+
+const sumOperationalDriverPayments = (payments: DriverFinancePayment[]) =>
+  payments.reduce((sum, payment) => {
+    if (payment.type === "received") return sum;
+    if (isTripSettlementPayment(payment)) return sum;
+    return sum + (payment.amount || 0);
+  }, 0);
+
+const getNetSettlementAmount = (payments: DriverFinancePayment[]) =>
+  payments.reduce((sum, payment) => {
+    if (!isTripSettlementPayment(payment)) return sum;
+    const amount = payment.amount || 0;
+    return sum + (payment.type === "received" ? -amount : amount);
+  }, 0);
+
 interface ReportRow {
   id: string;
   sNo: number;
@@ -25,10 +44,9 @@ interface ReportRow {
   bookingAmount: number;
   driverName: string;
   companyName: string;
-  advanceToDriver: number;
+  advanceReceived: number; // Advance + On Duty Paid combined
   driverExpenses: number;
   driverReceived: number;
-  amountPayable: number;
   vehicle: string;
   createdDate: string;
 }
@@ -113,33 +131,28 @@ export const CompanyReport: React.FC = () => {
         ? companies.find((c) => c.id === (b.companyId || ""))
         : undefined;
       const baseDriverExpenses = b.expenses.reduce((sum, e) => sum + e.amount, 0);
-      const hasPaymentAmount = (b.payments || []).reduce((sum, p) => sum + (p.amount || 0), 0);
-      const advanceToDriver = (b.advanceReceived || 0) + hasPaymentAmount;
       const financePayments = b.driverId ? driverIdToPayments.get(b.driverId) || [] : [];
       const paymentsForBooking = financePayments.filter((p) => p.bookingId === b.id);
-      const totalOilAmount = paymentsForBooking
-        .filter((p) => !p.description?.toLowerCase().includes("final payment"))
-        .reduce((s, p) => s + (p.amount || 0), 0);
+      const totalOilAmount = sumOperationalDriverPayments(paymentsForBooking);
       const driverExpenses = baseDriverExpenses + totalOilAmount;
-      const amountPayableBase = (() => {
-        if (totalOilAmount === 0) {
-          if (hasPaymentAmount === baseDriverExpenses) return 0;
-          if (hasPaymentAmount < baseDriverExpenses && hasPaymentAmount > 0)
-            return baseDriverExpenses - hasPaymentAmount;
-          return baseDriverExpenses;
-        } else {
-          if (hasPaymentAmount === 0) return baseDriverExpenses + totalOilAmount;
-          if (hasPaymentAmount < baseDriverExpenses)
-            return totalOilAmount + (baseDriverExpenses - hasPaymentAmount);
-          return totalOilAmount;
-        }
-      })();
-      const amountPayable = b.finalPaid
-        ? Math.max(0, (b.finalPaid || 0) - amountPayableBase)
-        : Math.max(0, amountPayableBase);
-      const driverReceived = b.finalPaid
-        ? (b.finalPaid || 0) + ((b.advanceReceived || 0) + hasPaymentAmount)
-        : ((b.advanceReceived || 0) + hasPaymentAmount);
+
+      const advanceReceived = b.advanceReceived || 0;
+      const onDutyPaid = (b.payments || []).reduce(
+        (s, p) => s + (p.amount || 0),
+        0
+      );
+
+      // Combine advance and on-duty paid into advanceReceived
+      const totalAdvanceReceived = advanceReceived + onDutyPaid;
+
+      // Calculate driver received (similar to BookingReport)
+      const hasSettlementEntries = paymentsForBooking.some(
+        isTripSettlementPayment
+      );
+      const netDriverSettlement = getNetSettlementAmount(paymentsForBooking);
+      const driverReceived = hasSettlementEntries
+        ? netDriverSettlement
+        : (b.finalPaid || 0);
       return {
         id: b.id,
         sNo: idx + 1,
@@ -149,10 +162,9 @@ export const CompanyReport: React.FC = () => {
         bookingAmount: b.totalAmount,
         driverName: driver?.name || "-",
         companyName: company?.name || (isCompanyBooking ? "-" : "Individual"),
-        advanceToDriver,
+        advanceReceived: totalAdvanceReceived,
         driverExpenses,
         driverReceived,
-        amountPayable,
         vehicle: vehicle?.registrationNumber || "-",
         createdDate: b.createdAt,
       };
@@ -175,10 +187,9 @@ export const CompanyReport: React.FC = () => {
       "From / To",
       "Booking Amount",
       "Driver Name",
-      "Advance to Driver",
+      "Advance Received",
       "Driver Expenses",
       "Driver Received",
-      "Amount Payable",
       "Vehicle",
       "Created Date",
     ];
@@ -191,10 +202,9 @@ export const CompanyReport: React.FC = () => {
         r.route,
         r.bookingAmount,
         r.driverName,
-        r.advanceToDriver,
+        r.advanceReceived,
         r.driverExpenses,
         r.driverReceived,
-        r.amountPayable,
         r.vehicle,
         new Date(r.createdDate).toLocaleString(),
       ].join(",")
@@ -214,7 +224,7 @@ export const CompanyReport: React.FC = () => {
     const table = `
       <table>
         <thead><tr>
-          <th>S.No</th><th>Company Name</th><th>Booking Date</th><th>Customer Name</th><th>From / To</th><th>Booking Amount</th><th>Driver Name</th><th>Advance to Driver</th><th>Driver Expenses</th><th>Driver Received</th><th>Amount Payable</th><th>Vehicle</th><th>Created Date</th>
+          <th>S.No</th><th>Company Name</th><th>Booking Date</th><th>Customer Name</th><th>From / To</th><th>Booking Amount</th><th>Driver Name</th><th>Advance Received</th><th>Driver Expenses</th><th>Driver Received</th><th>Vehicle</th><th>Created Date</th>
         </tr></thead>
         <tbody>
           ${rows
@@ -225,10 +235,10 @@ export const CompanyReport: React.FC = () => {
                 ).toLocaleDateString()}</td><td>${r.customerName}</td><td>${
                   r.route
                 }</td><td>${r.bookingAmount}</td><td>${r.driverName}</td><td>${
-                  r.advanceToDriver
+                  r.advanceReceived
                 }</td><td>${r.driverExpenses}</td><td>${
                   r.driverReceived
-                }</td><td>${r.amountPayable}</td><td>${
+                }</td><td>${
                   r.vehicle
                 }</td><td>${new Date(r.createdDate).toLocaleString()}</td></tr>`
             )
@@ -254,10 +264,9 @@ export const CompanyReport: React.FC = () => {
       "From / To",
       "Booking Amount",
       "Driver Name",
-      "Advance to Driver",
+      "Advance Received",
       "Driver Expenses",
       "Driver Received",
-      "Amount Payable",
       "Vehicle",
       "Created Date",
     ];
@@ -270,10 +279,9 @@ export const CompanyReport: React.FC = () => {
         r.route,
         r.bookingAmount,
         r.driverName,
-        r.advanceToDriver,
+        r.advanceReceived,
         r.driverExpenses,
         r.driverReceived,
-        r.amountPayable,
         r.vehicle,
         new Date(r.createdDate).toLocaleString(),
       ].join("\t")
@@ -291,7 +299,7 @@ export const CompanyReport: React.FC = () => {
     );
     w.document.write(`<h3>Company Report (${from} to ${to})</h3>`);
     w.document.write(
-      "<table><thead><tr><th>S.No</th><th>Company Name</th><th>Booking Date</th><th>Customer Name</th><th>From / To</th><th>Booking Amount</th><th>Driver Name</th><th>Advance to Driver</th><th>Driver Expenses</th><th>Driver Received</th><th>Amount Payable</th><th>Vehicle</th><th>Created Date</th></tr></thead><tbody>"
+      "<table><thead><tr><th>S.No</th><th>Company Name</th><th>Booking Date</th><th>Customer Name</th><th>From / To</th><th>Booking Amount</th><th>Driver Name</th><th>Advance Received</th><th>Driver Expenses</th><th>Driver Received</th><th>Vehicle</th><th>Created Date</th></tr></thead><tbody>"
     );
     rows.forEach((r) => {
       w.document.write(
@@ -300,10 +308,10 @@ export const CompanyReport: React.FC = () => {
         ).toLocaleDateString()}</td><td>${r.customerName}</td><td>${
           r.route
         }</td><td>${r.bookingAmount}</td><td>${r.driverName}</td><td>${
-          r.advanceToDriver
+          r.advanceReceived
         }</td><td>${r.driverExpenses}</td><td>${r.driverReceived}</td><td>${
-          r.amountPayable
-        }</td><td>${r.vehicle}</td><td>${new Date(
+          r.vehicle
+        }</td><td>${new Date(
           r.createdDate
         ).toLocaleString()}</td></tr>`
       );
@@ -475,16 +483,16 @@ export const CompanyReport: React.FC = () => {
           },
           { key: "customerName", header: "Customer Name" },
           { key: "route", header: "From / To" },
+          { key: "driverName", header: "Driver Name" },
           {
             key: "bookingAmount",
             header: "Booking Amount",
             render: (r) => `₹${r.bookingAmount.toLocaleString()}`,
           },
-          { key: "driverName", header: "Driver Name" },
           {
-            key: "advanceToDriver",
-            header: "Advance to Driver",
-            render: (r) => `₹${r.advanceToDriver.toLocaleString()}`,
+            key: "advanceReceived",
+            header: "Advance Received",
+            render: (r) => `₹${r.advanceReceived.toLocaleString()}`,
           },
           {
             key: "driverExpenses",
@@ -495,11 +503,6 @@ export const CompanyReport: React.FC = () => {
             key: "driverReceived",
             header: "Driver Received",
             render: (r) => `₹${r.driverReceived.toLocaleString()}`,
-          },
-          {
-            key: "amountPayable",
-            header: "Amount Payable",
-            render: (r) => `₹${r.amountPayable.toLocaleString()}`,
           },
           { key: "vehicle", header: "Vehicle" },
           {
@@ -570,9 +573,9 @@ export const CompanyReport: React.FC = () => {
                 </p>
               </div>
               <div>
-                <p className="text-xs text-gray-500">Advance to Driver</p>
+                <p className="text-xs text-gray-500">Advance Received</p>
                 <p className="font-semibold text-gray-900">
-                  ₹{viewingRow.advanceToDriver.toLocaleString()}
+                  ₹{viewingRow.advanceReceived.toLocaleString()}
                 </p>
               </div>
               <div>
@@ -585,12 +588,6 @@ export const CompanyReport: React.FC = () => {
                 <p className="text-xs text-gray-500">Driver Received</p>
                 <p className="font-semibold text-gray-900">
                   ₹{viewingRow.driverReceived.toLocaleString()}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">Amount Payable</p>
-                <p className="font-semibold text-gray-900">
-                  ₹{viewingRow.amountPayable.toLocaleString()}
                 </p>
               </div>
               <div>

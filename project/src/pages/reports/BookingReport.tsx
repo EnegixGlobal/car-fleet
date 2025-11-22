@@ -14,6 +14,25 @@ import type {
 } from "../../types";
 import { financeAPI } from "../../services/api";
 
+const isTripSettlementPayment = (payment: DriverFinancePayment) => {
+  const description = payment.description?.toLowerCase() || "";
+  return description.includes("final payment") || description.includes("refund");
+};
+
+const sumOperationalDriverPayments = (payments: DriverFinancePayment[]) =>
+  payments.reduce((sum, payment) => {
+    if (payment.type === "received") return sum;
+    if (isTripSettlementPayment(payment)) return sum;
+    return sum + (payment.amount || 0);
+  }, 0);
+
+const getNetSettlementAmount = (payments: DriverFinancePayment[]) =>
+  payments.reduce((sum, payment) => {
+    if (!isTripSettlementPayment(payment)) return sum;
+    const amount = payment.amount || 0;
+    return sum + (payment.type === "received" ? -amount : amount);
+  }, 0);
+
 interface ReportRow {
   id: string;
   sNo: number;
@@ -21,9 +40,9 @@ interface ReportRow {
   customerName: string;
   route: string;
   bookingAmount: number;
-  advanceReceived: number; // Advance to Driver
+  advanceReceived: number; // Advance + On Duty Paid combined
   expenses: number;
-  balance: number;
+  balance: number; // Driver Received
   driverName: string;
   vehicle: string;
   status: "booked" | "ongoing" | "completed" | "yet-to-start" | "canceled";
@@ -98,28 +117,27 @@ export const BookingReport: React.FC = () => {
       const paymentsForBooking = financePayments.filter(
         (p) => p.bookingId === b.id
       );
-      const totalOilAmount = paymentsForBooking
-        .filter((p) => !p.description?.toLowerCase().includes("final payment"))
-        .reduce((s, p) => s + (p.amount || 0), 0);
+      const totalOilAmount = sumOperationalDriverPayments(paymentsForBooking);
 
       const driverExpenses = baseDriverExpenses + totalOilAmount;
 
-      const hasPaymentAmount = (b.payments || []).reduce(
+      const advanceReceived = b.advanceReceived || 0;
+      const onDutyPaid = (b.payments || []).reduce(
         (s, p) => s + (p.amount || 0),
         0
       );
-      const advanceToDriver = (b.advanceReceived || 0) + hasPaymentAmount;
 
-      // Compute how much driver actually received at the end
-      const driverReceivedBase = (b.advanceReceived || 0) + hasPaymentAmount;
-      const displayDriverReceived = b.finalPaid
-        ? (b.finalPaid || 0) + driverReceivedBase
-        : driverReceivedBase;
+      // Combine advance and on-duty paid into advanceReceived
+      const totalAdvanceReceived = advanceReceived + onDutyPaid;
 
-      const amountPay = paymentsForBooking.reduce(
-        (s, p) => s + (p.amount || 0),
-        0
+      // Calculate driver received (similar to DriverReport)
+      const hasSettlementEntries = paymentsForBooking.some(
+        isTripSettlementPayment
       );
+      const netDriverSettlement = getNetSettlementAmount(paymentsForBooking);
+      const driverReceived = hasSettlementEntries
+        ? netDriverSettlement
+        : (b.finalPaid || 0);
 
       return {
         id: b.id,
@@ -128,14 +146,14 @@ export const BookingReport: React.FC = () => {
         customerName: b.customerName,
         route: `${b.pickupLocation} / ${b.dropLocation}`,
         bookingAmount: b.totalAmount,
-        advanceReceived: advanceToDriver,
+        advanceReceived: totalAdvanceReceived,
         expenses: driverExpenses,
-        balance: displayDriverReceived,
+        balance: driverReceived,
         driverName: drv?.name || "-",
         vehicle: veh?.registrationNumber || "-",
         status: b.status,
         createdAt: b.createdAt,
-        paymentsAmount: amountPay,
+        paymentsAmount: netDriverSettlement,
       };
     });
     setRows(result);
@@ -149,7 +167,7 @@ export const BookingReport: React.FC = () => {
   // Exports
   const exportCSV = () => {
     if (rows.length === 0) return;
-    const header = ['S.No','Booking Date','Customer Name','From / To','Booking Amount','Advance Received','Expenses','Balance','Driver Name','Vehicle','Status','Created Date'];
+    const header = ['S.No','Booking Date','Customer Name','From / To','Booking Amount','Advance Received','Driver Expenses','Driver Received','Driver Name','Vehicle','Status','Created Date'];
     const lines = rows.map(r => [r.sNo, r.bookingDate, r.customerName, r.route, r.bookingAmount, r.advanceReceived, r.expenses, r.balance, r.driverName, r.vehicle, r.status, r.createdAt].join(','));
     const csv = [header.join(','), ...lines].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -161,7 +179,7 @@ export const BookingReport: React.FC = () => {
     const table = `
       <table>
         <thead><tr>
-          <th>S.No</th><th>Booking Date</th><th>Customer Name</th><th>From / To</th><th>Booking Amount</th><th>Advance Received</th><th>Expenses</th><th>Balance</th><th>Driver Name</th><th>Vehicle</th><th>Status</th><th>Created Date</th>
+          <th>S.No</th><th>Booking Date</th><th>Customer Name</th><th>From / To</th><th>Booking Amount</th><th>Advance Received</th><th>Driver Expenses</th><th>Driver Received</th><th>Driver Name</th><th>Vehicle</th><th>Status</th><th>Created Date</th>
         </tr></thead>
         <tbody>
           ${rows.map(r => `<tr><td>${r.sNo}</td><td>${r.bookingDate}</td><td>${r.customerName}</td><td>${r.route}</td><td>${r.bookingAmount}</td><td>${r.advanceReceived}</td><td>${r.expenses}</td><td>${r.balance}</td><td>${r.driverName}</td><td>${r.vehicle}</td><td>${r.status}</td><td>${r.createdAt}</td></tr>`).join('')}
@@ -173,7 +191,7 @@ export const BookingReport: React.FC = () => {
   };
   const exportCopy = async () => {
     if (rows.length === 0) return;
-    const header = ['S.No','Booking Date','Customer Name','From / To','Booking Amount','Advance Received','Expenses','Balance','Driver Name','Vehicle','Status','Created Date'];
+    const header = ['S.No','Booking Date','Customer Name','From / To','Booking Amount','Advance Received','Driver Expenses','Driver Received','Driver Name','Vehicle','Status','Created Date'];
     const lines = rows.map(r => [r.sNo, r.bookingDate, r.customerName, r.route, r.bookingAmount, r.advanceReceived, r.expenses, r.balance, r.driverName, r.vehicle, r.status, r.createdAt].join('\t'));
     await navigator.clipboard.writeText([header.join('\t'), ...lines].join('\n'));
   };
@@ -182,7 +200,7 @@ export const BookingReport: React.FC = () => {
     if (!w) return;
     w.document.write('<html><head><title>Booking Report</title><style>table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:6px;font-size:12px}th{background:#f5f5f5}</style></head><body>');
     w.document.write(`<h3>Booking Report (${from} to ${to})</h3>`);
-    w.document.write('<table><thead><tr><th>S.No</th><th>Booking Date</th><th>Customer Name</th><th>From / To</th><th>Booking Amount</th><th>Advance Received</th><th>Expenses</th><th>Balance</th><th>Driver Name</th><th>Vehicle</th><th>Status</th><th>Created Date</th></tr></thead><tbody>');
+    w.document.write('<table><thead><tr><th>S.No</th><th>Booking Date</th><th>Customer Name</th><th>From / To</th><th>Booking Amount</th><th>Advance Received</th><th>Driver Expenses</th><th>Driver Received</th><th>Driver Name</th><th>Vehicle</th><th>Status</th><th>Created Date</th></tr></thead><tbody>');
     rows.forEach(r => { w.document.write(`<tr><td>${r.sNo}</td><td>${r.bookingDate}</td><td>${r.customerName}</td><td>${r.route}</td><td>${r.bookingAmount}</td><td>${r.advanceReceived}</td><td>${r.expenses}</td><td>${r.balance}</td><td>${r.driverName}</td><td>${r.vehicle}</td><td>${r.status}</td><td>${r.createdAt}</td></tr>`); });
     w.document.write('</tbody></table></body></html>');
     w.document.close(); w.focus(); w.print();
@@ -310,15 +328,15 @@ export const BookingReport: React.FC = () => {
       </Card>
 
       <Card>
-        <CardContent className="flex items-center justify-between">
+        <CardContent className="flex items-center justify-between flex-wrap gap-4">
           <div className="text-sm text-gray-700">
             Total Amount:{" "}
             <span className="font-semibold">
-              ₹{(totals.expenses + totals.advance).toLocaleString()}
+              ₹{totals.amount.toLocaleString()}
             </span>
           </div>
           <div className="text-sm text-gray-700">
-            Advance:{" "}
+            Advance Received:{" "}
             <span className="font-semibold">
               ₹{totals.advance.toLocaleString()}
             </span>
@@ -330,7 +348,7 @@ export const BookingReport: React.FC = () => {
             </span>
           </div>
           <div className="text-sm text-gray-700">
-            Balance:{" "}
+            Driver Received:{" "}
             <span className="font-semibold">
               ₹{totals.balance.toLocaleString()}
             </span>
@@ -366,7 +384,7 @@ export const BookingReport: React.FC = () => {
           },
           {
             key: "balance",
-            header: "Amount Paid",
+            header: "Driver Received",
             render: (r) => `₹${r.balance.toLocaleString()}`,
           },
           { key: "driverName", header: "Driver Name" },
@@ -452,7 +470,7 @@ export const BookingReport: React.FC = () => {
                 </p>
               </div>
               <div>
-                <p className="text-xs text-gray-500">Amount Paid</p>
+                <p className="text-xs text-gray-500">Driver Received</p>
                 <p className="font-semibold text-gray-900">
                   ₹{viewingRow.balance.toLocaleString()}
                 </p>

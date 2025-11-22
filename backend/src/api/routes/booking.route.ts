@@ -27,5 +27,6 @@ router.get('/:id/driver-payments', auth(['admin','accountant','dispatcher']), co
 router.put('/:id/driver-payments/:paymentId', auth(['admin','accountant','dispatcher']), controller.updateDriverPayment);
 router.delete('/:id/driver-payments/:paymentId', auth(['admin','accountant','dispatcher']), controller.deleteDriverPayment);
 router.get('/:id/driver-payments-export', auth(['admin','accountant','dispatcher']), controller.exportDriverPayments);
+router.put('/:id/settle', auth(['admin','accountant','dispatcher']), controller.toggleSettled);
 
 export { router as bookingRouter };

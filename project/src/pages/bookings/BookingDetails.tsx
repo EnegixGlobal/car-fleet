@@ -132,6 +132,8 @@ export const BookingDetails: React.FC = () => {
       amount: p.mode !== "fuel-basis" ? String(p.amount) : undefined,
       fuelQuantity: p.fuelQuantity ? String(p.fuelQuantity) : undefined,
       fuelRate: p.fuelRate ? String(p.fuelRate) : undefined,
+      distanceKm: p.distanceKm ? String(p.distanceKm) : undefined,
+      mileage: p.mileage ? String(p.mileage) : undefined,
       description: p.description,
     });
     setShowDriverPaymentModal(true);
@@ -1401,22 +1403,35 @@ export const BookingDetails: React.FC = () => {
                     mileage?: number;
                   } = { mode: data.mode, description: data.description };
                   if (data.mode === "fuel-basis") {
-                    if (
-                      data.distanceKm &&
-                      data.mileage &&
-                      parseFloat(data.mileage) > 0
-                    ) {
+                    // Save distanceKm and mileage if provided (even if only one is provided)
+                    if (data.distanceKm) {
                       upd.distanceKm = parseFloat(data.distanceKm);
-                      upd.mileage = parseFloat(data.mileage);
-                      // Let backend derive fuelQuantity; we don't send explicit unless user manually entered without distance
                     }
-                    if (!upd.distanceKm && data.fuelQuantity) {
+                    if (data.mileage && parseFloat(data.mileage) > 0) {
+                      upd.mileage = parseFloat(data.mileage);
+                    }
+                    // If both distanceKm and mileage are provided, backend will derive fuelQuantity
+                    if (
+                      upd.distanceKm !== undefined &&
+                      upd.mileage !== undefined &&
+                      upd.mileage > 0
+                    ) {
+                      // Let backend derive fuelQuantity from distanceKm and mileage
+                    } else if (data.fuelQuantity) {
+                      // If distanceKm/mileage not provided, use explicit fuelQuantity
                       upd.fuelQuantity = parseFloat(data.fuelQuantity || "0");
                     }
                     if (data.fuelRate)
                       upd.fuelRate = parseFloat(data.fuelRate || "0");
                   } else {
                     upd.amount = parseFloat(data.amount || "0");
+                    // Preserve distanceKm and mileage even for non-fuel-basis modes if they exist
+                    if (data.distanceKm) {
+                      upd.distanceKm = parseFloat(data.distanceKm);
+                    }
+                    if (data.mileage) {
+                      upd.mileage = parseFloat(data.mileage);
+                    }
                   }
                   const updated = await bookingAPI.updateDriverPayment(
                     booking.id,
@@ -1446,25 +1461,22 @@ export const BookingDetails: React.FC = () => {
                   description: data.description,
                 };
                 if (data.mode === "fuel-basis") {
-                  if (
-                    data.distanceKm &&
-                    data.mileage &&
-                    parseFloat(data.mileage) > 0
-                  ) {
+                  // Save distanceKm and mileage if provided (even if only one is provided)
+                  if (data.distanceKm) {
                     payload.distanceKm = parseFloat(data.distanceKm);
-                    payload.mileage = parseFloat(data.mileage);
-                    // Derived path; don't set fuelQuantity explicitly
                   }
-                  if (!payload.distanceKm && data.fuelQuantity) {
+                  if (data.mileage && parseFloat(data.mileage) > 0) {
+                    payload.mileage = parseFloat(data.mileage);
+                  }
+                  // If both distanceKm and mileage are provided, calculate fuelQuantity
+                  if (payload.distanceKm !== undefined && payload.mileage !== undefined && payload.mileage > 0) {
+                    payload.fuelQuantity = Math.round((payload.distanceKm / payload.mileage) * 100) / 100;
+                  } else if (data.fuelQuantity) {
+                    // If distanceKm/mileage not provided, use explicit fuelQuantity
                     payload.fuelQuantity = parseFloat(data.fuelQuantity || "0");
                   }
                   if (data.fuelRate)
                     payload.fuelRate = parseFloat(data.fuelRate || "0");
-                  
-                  // For fuel-basis, we need to ensure fuelQuantity is calculated
-                  if (payload.distanceKm && payload.mileage && payload.mileage > 0) {
-                    payload.fuelQuantity = Math.round((payload.distanceKm / payload.mileage) * 100) / 100;
-                  }
                   
                   // Calculate amount for fuel-basis
                   if (payload.fuelQuantity && payload.fuelRate) {

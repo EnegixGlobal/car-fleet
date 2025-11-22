@@ -8,6 +8,7 @@ import { DriverPayment } from "../types";
 type RawDriverPayment = {
   _id?: string;
   id?: string;
+  type?: "paid" | "received";
   bookingId?: string;
   entityId?: string;
   driverPaymentMode?: string;
@@ -1022,6 +1023,7 @@ interface RawFullBooking {
   expenses: RawExpense[];
   payments?: RawBookingPayment[];
   finalPaid?: number;
+  settled?: boolean;
   billed: boolean;
   dutySlipSubmitted: boolean;
   dutySlipSubmittedToCompany: boolean;
@@ -1201,6 +1203,7 @@ export const bookingAPI = {
             : new Date(p.paidOn).toISOString(),
       })),
       finalPaid: raw.finalPaid,
+      settled: raw.settled,
       billed: raw.billed,
       dutySlipSubmitted: raw.dutySlipSubmitted,
       dutySlipSubmittedToCompany: raw.dutySlipSubmittedToCompany,
@@ -1346,6 +1349,10 @@ export const bookingAPI = {
     });
     return bookingAPI._normalize(res.data as RawFullBooking);
   },
+  toggleSettled: async (id: string, settled: boolean): Promise<BookingDTO> => {
+    const res = await api.put(`/bookings/${id}/settle`, { settled });
+    return bookingAPI._normalize(res.data as RawFullBooking);
+  },
   addDriverPayment: async (
     bookingId: string,
     payload: {
@@ -1357,6 +1364,7 @@ export const bookingAPI = {
       description?: string;
       distanceKm?: number;
       mileage?: number;
+      action?: "pay" | "refund";
     }
   ): Promise<DriverPayment> => {
     const res = await api.post(`/bookings/${bookingId}/driver-payments`, {
@@ -1365,6 +1373,7 @@ export const bookingAPI = {
     const raw = res.data as {
       _id?: string;
       id?: string;
+      type?: "paid" | "received";
       bookingId?: string;
       entityId?: string;
       driverPaymentMode?: string;
@@ -1390,6 +1399,7 @@ export const bookingAPI = {
       computedAmount: raw.computedAmount,
       distanceKm: raw.distanceKm,
       mileage: raw.mileage,
+      type: raw.type,
     };
   },
   listDriverPayments: async (bookingId: string): Promise<DriverPayment[]> => {
@@ -1410,6 +1420,7 @@ export const bookingAPI = {
       mileage: raw.mileage,
       settled: raw.settled,
       settledAt: raw.settledAt,
+      type: raw.type,
     }));
   },
   updateDriverPayment: async (
@@ -1547,6 +1558,7 @@ export const financeAPI = {
       description?: string;
       distanceKm?: number;
       mileage?: number;
+      action?: "pay" | "refund";
     }
   ): Promise<DriverPayment> => {
     const res = await api.post(`/bookings/${bookingId}/driver-payments`, {
@@ -1555,8 +1567,8 @@ export const financeAPI = {
     const raw = res.data as {
       _id?: string;
       id?: string;
+      type?: "paid" | "received";
       amount: number;
-      type: "paid" | "received";
       date: string;
       description?: string;
       bookingId?: string;
@@ -1584,6 +1596,7 @@ export const financeAPI = {
       mileage: raw.mileage,
       settled: raw.settled,
       settledAt: raw.settledAt,
+      type: raw.type,
     };
   },
 };
