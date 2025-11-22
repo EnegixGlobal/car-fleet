@@ -27,7 +27,16 @@ export const getPayments = async (page: number, limit: number) => {
 
 // Create a driver payment tied to a booking (per-trip, daily, or fuel-basis)
 export const createDriverBookingPayment = async (data: {
-  driverId: string; bookingId: string; mode: 'per-trip'|'daily'|'fuel-basis'; amount?: number; fuelQuantity?: number; fuelRate?: number; description?: string; distanceKm?: number; mileage?: number;
+  driverId: string;
+  bookingId: string;
+  mode: 'per-trip'|'daily'|'fuel-basis';
+  amount?: number;
+  fuelQuantity?: number;
+  fuelRate?: number;
+  description?: string;
+  distanceKm?: number;
+  mileage?: number;
+  action?: 'pay' | 'refund';
 }) => {
   // Ensure booking exists and matches driver if driver assigned
   const booking = await Booking.findById(data.bookingId).select('driverId');
@@ -44,14 +53,18 @@ export const createDriverBookingPayment = async (data: {
   const computedAmount = data.mode === 'fuel-basis' && fuelQuantity !== undefined && data.fuelRate !== undefined
     ? fuelQuantity * data.fuelRate
     : undefined;
-  const amount = data.mode === 'fuel-basis' ? (computedAmount || 0) : (data.amount || 0);
+  const baseAmount = data.mode === 'fuel-basis' ? (computedAmount || 0) : (data.amount || 0);
+  const normalizedAmount = Math.abs(baseAmount);
+  const action = data.action === 'refund' ? 'refund' : 'pay';
   const paymentDoc: Omit<IPayment,'_id'> = {
     entityId: booking.driverId || (data as any).driverId,
     entityType: 'driver',
-    amount,
-    type: 'paid',
+    amount: normalizedAmount,
+    type: action === 'refund' ? 'received' : 'paid',
     date: new Date(),
-    description: data.description || `${data.mode} driver payment`,
+    description:
+      data.description ||
+      `${data.mode} driver ${action === 'refund' ? 'refund' : 'payment'}`,
     relatedAdvanceId: undefined,
     bookingId: booking._id,
     driverPaymentMode: data.mode,

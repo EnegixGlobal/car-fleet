@@ -335,6 +335,7 @@ export const driverBookingPaymentSchema = z
     driverId: z.string().min(1),
     bookingId: z.string().min(1),
     mode: z.enum(["per-trip", "daily", "fuel-basis"]),
+    action: z.enum(["pay", "refund"]).default("pay"),
     amount: z.number().min(0).optional(), // may be auto-computed for fuel-basis
     fuelQuantity: z.number().min(0).optional(),
     fuelRate: z.number().min(0).optional(),

@@ -198,6 +198,9 @@ export const addDriverPayment = async (req: AuthRequest, res: Response) => {
       fuelQuantity: data.fuelQuantity,
       fuelRate: data.fuelRate,
       description: data.description,
+      distanceKm: data.distanceKm,
+      mileage: data.mileage,
+      action: data.action,
     });
     res.status(201).json(payment);
   } catch (e: any) {
@@ -234,6 +237,13 @@ export const deleteDriverPayment = async (req: AuthRequest, res: Response) => {
   if (!deleted)
     return res.status(404).json({ message: "Driver payment not found" });
   res.status(204).send();
+};
+
+export const toggleSettled = async (req: AuthRequest, res: Response) => {
+  const { settled } = req.body;
+  const booking = await service.updateBooking(req.params.id, { settled: settled === true || settled === "true" });
+  if (!booking) return res.status(404).json({ message: "Booking not found" });
+  res.json(booking);
 };
 
 export const exportDriverPayments = async (req: AuthRequest, res: Response) => {

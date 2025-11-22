@@ -162,6 +162,7 @@ export interface Booking {
   payments?: BookingPayment[];
   // Total amount finally paid to driver for this booking
   finalPaid?: number;
+  settled?: boolean;
   billed: boolean;
   dutySlipSubmitted: boolean;
   dutySlipSubmittedToCompany: boolean;
@@ -242,6 +243,7 @@ export interface DriverPayment {
   mileage?: number; // km per litre reference
   settled?: boolean;
   settledAt?: string;
+  type?: "paid" | "received";
 }
 
 // Payment returned from finance driver payments endpoint (may include booking meta)

@@ -59,18 +59,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
       icon: "user",
       roles: ["admin", "dispatcher", "accountant"],
     },
-    {
-      name: "Finance",
-      href: "/finance",
-      icon: "money",
-      roles: ["admin", "accountant"],
-    },
-    {
-      name: "Fuel",
-      href: "/fuel",
-      icon: "wallet",
-      roles: ["admin", "accountant", "dispatcher"],
-    },
+    // {
+    //   name: "Finance",
+    //   href: "/finance",
+    //   icon: "money",
+    //   roles: ["admin", "accountant"],
+    // },
+    // {
+    //   name: "Fuel",
+    //   href: "/fuel",
+    //   icon: "wallet",
+    //   roles: ["admin", "accountant", "dispatcher"],
+    // },
     // Reports handled separately as a collapsible group below
     {
       name: "Account",
