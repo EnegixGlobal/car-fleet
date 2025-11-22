@@ -349,7 +349,7 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* Financial Overview - Only for Admin and Accountant */}
-      {hasRole(['admin', 'accountant']) && (
+  {/*    {hasRole(['admin', 'accountant']) && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <Card>
             <CardContent className="p-6">
@@ -387,7 +387,7 @@ export const Dashboard: React.FC = () => {
             </CardContent>
           </Card>
         </div>
-      )}
+      )}*/}
 
   {/* Fleet Overview - For Admin and Dispatcher (not for driver) */}
   {hasRole(['admin', 'dispatcher']) && user?.role !== 'driver' && (
