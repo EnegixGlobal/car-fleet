@@ -334,7 +334,7 @@ export const EditBooking: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <Select
                 {...register('vehicleCategoryId')}
-                label="Vehicle Category (Optional)"
+                label="Vehicle Category"
                 placeholder="Select vehicle category"
                 options={vehicleCategoryOptions}
               />
