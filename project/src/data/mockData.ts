@@ -1,3 +1,7 @@
+/* Demo mock data retained for reference only. The app now relies on real API
+   responses and local storage. Uncomment the block below if you ever need the
+   historical demo dataset locally during development.
+
 import { Booking, Driver, Vehicle, Company } from '../types';
 
 export const mockBookings: Booking[] = [
@@ -572,3 +576,6 @@ export const mockCompanies: Company[] = [
     createdAt: '2024-07-02T00:00:00Z'
   }
 ];
+*/
+
+export {};

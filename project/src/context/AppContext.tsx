@@ -16,12 +16,6 @@ import {
   Customer,
 } from "../types";
 import {
-  mockBookings,
-  mockDrivers,
-  mockVehicles,
-  mockCompanies,
-} from "../data/mockData";
-import {
   companyAPI,
   vehicleAPI,
   driverAPI,
@@ -128,6 +122,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
     const savedBookings = localStorage.getItem("bolt_bookings");
     const savedDrivers = localStorage.getItem("bolt_drivers");
     const savedVehicles = localStorage.getItem("bolt_vehicles");
+    const savedCompanies = localStorage.getItem("bolt_companies");
     const savedPayments = localStorage.getItem("bolt_payments");
 
     (async () => {
@@ -146,17 +141,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
         localStorage.setItem("bolt_bookings", JSON.stringify(normalized));
       } catch (err) {
         console.error(
-          "Failed to load bookings from API, using saved/mock",
+          "Failed to load bookings from API, using saved data fallback",
           err
         );
         if (savedBookings) {
           try {
             setBookings(JSON.parse(savedBookings));
           } catch {
-            setBookings(mockBookings);
+            setBookings([]);
           }
         } else {
-          setBookings(mockBookings);
+          setBookings([]);
         }
       } finally {
         setBookingsLoading(false);
@@ -172,15 +167,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
         setDrivers(normalized); // even if empty; don't inject mock IDs that won't match bookings
         localStorage.setItem("bolt_drivers", JSON.stringify(normalized));
       } catch (err) {
-        console.error("Failed to load drivers from API, using saved/mock", err);
+        console.error("Failed to load drivers from API, using saved data", err);
         if (savedDrivers) {
           try {
             setDrivers(JSON.parse(savedDrivers));
           } catch {
-            setDrivers(mockDrivers);
+            setDrivers([]);
           }
         } else {
-          setDrivers(mockDrivers);
+          setDrivers([]);
         }
       } finally {
         setDriversLoading(false);
@@ -194,21 +189,31 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
         const normalized: Vehicle[] = apiVehicles.map(
           (v) => ({ ...v } as Vehicle)
         );
-        setVehicles(normalized); // even if empty, reflect backend state
-        localStorage.setItem("bolt_vehicles", JSON.stringify(normalized));
+        // Deduplicate by id to prevent duplicates
+        const uniqueVehicles = normalized.filter(
+          (v, index, self) => index === self.findIndex((t) => t.id === v.id)
+        );
+        setVehicles(uniqueVehicles); // even if empty, reflect backend state
+        localStorage.setItem("bolt_vehicles", JSON.stringify(uniqueVehicles));
       } catch (err) {
         console.error(
-          "Failed to load vehicles from API, using saved/mock",
+          "Failed to load vehicles from API, using saved data",
           err
         );
         if (savedVehicles) {
           try {
-            setVehicles(JSON.parse(savedVehicles));
+            const parsed = JSON.parse(savedVehicles);
+            // Deduplicate saved vehicles as well
+            const uniqueSaved = parsed.filter(
+              (v: Vehicle, index: number, self: Vehicle[]) =>
+                index === self.findIndex((t) => t.id === v.id)
+            );
+            setVehicles(uniqueSaved);
           } catch {
-            setVehicles(mockVehicles);
+            setVehicles([]);
           }
         } else {
-          setVehicles(mockVehicles);
+          setVehicles([]);
         }
       } finally {
         setVehiclesLoading(false);
@@ -235,8 +240,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
         );
         setCompanies(normalized);
       } catch (err) {
-        console.error("Failed to load companies from API, using mock", err);
-        setCompanies(mockCompanies);
+        console.error("Failed to load companies from API, using saved data", err);
+        if (savedCompanies) {
+          try {
+            setCompanies(JSON.parse(savedCompanies));
+          } catch {
+            setCompanies([]);
+          }
+        } else {
+          setCompanies([]);
+        }
       }
     })();
     // Customers fetch
@@ -291,7 +304,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
       for (const id of missingDriverIds) {
         try {
           const d = await driverAPI.get(id);
-          setDrivers((prev) => [...prev, d as unknown as Driver]);
+          setDrivers((prev) => {
+            // Check if driver already exists to prevent duplicates
+            if (prev.find((existing) => existing.id === d.id)) {
+              return prev;
+            }
+            return [...prev, d as unknown as Driver];
+          });
         } catch {
           /* ignore */
         }
@@ -299,7 +318,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
       for (const id of missingVehicleIds) {
         try {
           const v = await vehicleAPI.get(id);
-          setVehicles((prev) => [...prev, v as unknown as Vehicle]);
+          setVehicles((prev) => {
+            // Check if vehicle already exists to prevent duplicates
+            if (prev.find((existing) => existing.id === v.id)) {
+              return prev;
+            }
+            return [...prev, v as unknown as Vehicle];
+          });
         } catch {
           /* ignore */
         }
@@ -813,17 +838,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
   };
 
   const resetSampleData = () => {
-    setBookings(mockBookings);
-    setDrivers(mockDrivers);
-    setVehicles(mockVehicles);
-    setCompanies(mockCompanies);
+    setBookings([]);
+    setDrivers([]);
+    setVehicles([]);
+    setCompanies([]);
     setCustomers([]);
     setPayments([]);
-    localStorage.setItem("bolt_bookings", JSON.stringify(mockBookings));
-    localStorage.setItem("bolt_drivers", JSON.stringify(mockDrivers));
-    localStorage.setItem("bolt_vehicles", JSON.stringify(mockVehicles));
-    localStorage.setItem("bolt_companies", JSON.stringify(mockCompanies));
-    localStorage.setItem("bolt_payments", JSON.stringify([]));
+    localStorage.removeItem("bolt_bookings");
+    localStorage.removeItem("bolt_drivers");
+    localStorage.removeItem("bolt_vehicles");
+    localStorage.removeItem("bolt_companies");
+    localStorage.removeItem("bolt_customers");
+    localStorage.removeItem("bolt_payments");
   };
 
   return (
