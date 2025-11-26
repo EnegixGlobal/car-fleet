@@ -24,7 +24,7 @@ const bookingSchema = z.object({
   cityOfWork: z.string().optional(),
   startDate: z.string().min(1, 'Start date is required'),
   endDate: z.string().min(1, 'End date is required'),
-  vehicleCategoryId: z.string().optional(),
+  vehicleCategoryId: z.string().min(1, 'Vehicle category is required'),
   vehicleId: z.string().optional(),
   driverId: z.string().optional(),
   tariffRate: z.number().min(0, 'Tariff rate must be positive'),
@@ -80,7 +80,7 @@ export const CreateBooking: React.FC = () => {
       tariffRate: 0,
       totalAmount: 0,
       advanceReceived: 0,
-      vehicleCategoryId: undefined,
+      vehicleCategoryId: '',
       vehicleId: undefined,
       driverId: undefined,
   }
@@ -126,7 +126,7 @@ export const CreateBooking: React.FC = () => {
         ...data,
         ...normalizedDates,
         companyId: normalizedCompanyId,
-        vehicleCategoryId: data.vehicleCategoryId || undefined,
+        vehicleCategoryId: data.vehicleCategoryId,
         vehicleId: data.vehicleId || undefined,
         driverId: data.driverId || undefined,
         balance: data.totalAmount - data.advanceReceived,
@@ -399,6 +399,7 @@ export const CreateBooking: React.FC = () => {
               <Select
                 {...register('vehicleCategoryId')}
                 label="Vehicle Category"
+                error={errors.vehicleCategoryId?.message}
                 placeholder="Select vehicle category"
                 options={vehicleCategoryOptions}
               />
