@@ -22,6 +22,7 @@ import {
   bookingAPI,
   customerAPI,
 } from "../services/api";
+import { useAuth } from "../hooks/useAuth";
 
 interface AppContextType {
   // Bookings
@@ -106,6 +107,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export const AppProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
+  const { user } = useAuth();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [bookingsLoading, setBookingsLoading] = useState(false);
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -117,8 +119,64 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
   const [payments, setPayments] = useState<Payment[]>([]);
   const [customersLoading, setCustomersLoading] = useState(false);
 
-  // Load data from localStorage on mount
+  // Load data from localStorage on mount and API when authenticated
   useEffect(() => {
+    // Only fetch data if user is authenticated
+    if (!user) {
+      // Load from localStorage only if not authenticated
+      const savedBookings = localStorage.getItem("bolt_bookings");
+      const savedDrivers = localStorage.getItem("bolt_drivers");
+      const savedVehicles = localStorage.getItem("bolt_vehicles");
+      const savedCompanies = localStorage.getItem("bolt_companies");
+      const savedPayments = localStorage.getItem("bolt_payments");
+      const savedCustomers = localStorage.getItem("bolt_customers");
+
+      if (savedBookings) {
+        try {
+          setBookings(JSON.parse(savedBookings));
+        } catch {
+          setBookings([]);
+        }
+      }
+      if (savedDrivers) {
+        try {
+          setDrivers(JSON.parse(savedDrivers));
+        } catch {
+          setDrivers([]);
+        }
+      }
+      if (savedVehicles) {
+        try {
+          setVehicles(JSON.parse(savedVehicles));
+        } catch {
+          setVehicles([]);
+        }
+      }
+      if (savedCompanies) {
+        try {
+          setCompanies(JSON.parse(savedCompanies));
+        } catch {
+          setCompanies([]);
+        }
+      }
+      if (savedCustomers) {
+        try {
+          setCustomers(JSON.parse(savedCustomers));
+        } catch {
+          setCustomers([]);
+        }
+      }
+      if (savedPayments) {
+        try {
+          setPayments(JSON.parse(savedPayments));
+        } catch {
+          setPayments([]);
+        }
+      }
+      return;
+    }
+
+    // User is authenticated, fetch from API
     const savedBookings = localStorage.getItem("bolt_bookings");
     const savedDrivers = localStorage.getItem("bolt_drivers");
     const savedVehicles = localStorage.getItem("bolt_vehicles");
@@ -277,7 +335,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
       }
     })();
     setPayments(savedPayments ? JSON.parse(savedPayments) : []);
-  }, []);
+  }, [user]);
 
   // Save to localStorage whenever data changes
   useEffect(() => {

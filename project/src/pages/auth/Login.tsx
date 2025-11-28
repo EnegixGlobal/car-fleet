@@ -86,6 +86,7 @@ export const Login: React.FC = () => {
                 label="Email address"
                 error={errors.email?.message}
                 placeholder="you@example.com"
+                autoComplete="email"
               />
               <div>
                 <div className="flex items-center justify-between">
@@ -99,6 +100,7 @@ export const Login: React.FC = () => {
                   type={showPassword ? 'text' : 'password'}
                   placeholder="Enter your password"
                   error={errors.password?.message}
+                  autoComplete="current-password"
                 />
               </div>
 
