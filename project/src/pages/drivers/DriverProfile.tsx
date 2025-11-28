@@ -7,6 +7,8 @@ import { Icon } from '../../components/ui/Icon';
 import { financeAPI } from '../../services/api';
 import { DriverFinancePayment } from '../../types';
 
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
 export const DriverProfile: React.FC = () => {
   const { id } = useParams<{id: string}>();
   const navigate = useNavigate();
@@ -17,6 +19,18 @@ export const DriverProfile: React.FC = () => {
   const [driverPayments, setDriverPayments] = React.useState<DriverFinancePayment[]>([]);
   const [viewMode, setViewMode] = React.useState<'trip' | 'day'>('trip');
   const driver = drivers.find(d => d.id === id);
+
+  // Helper to get full URL for uploaded files
+  const getFileUrl = (filename: string | undefined | null): string => {
+    if (!filename) return '';
+    // If it's already a full URL, return it as is
+    if (filename.startsWith('http://') || filename.startsWith('https://')) {
+      return filename;
+    }
+    // Remove /api from BASE_URL if present, then construct the URL
+    const baseUrl = BASE_URL.replace('/api', '');
+    return `${baseUrl}/uploads/${filename}`;
+  };
 
   React.useEffect(() => {
     if (!id) return;
@@ -76,12 +90,15 @@ export const DriverProfile: React.FC = () => {
           {driver.photo && (
             <div className='md:col-span-2 flex items-center gap-4'>
               <img
-                src={driver.photo}
+                src={getFileUrl(driver.photo)}
                 alt={driver.name}
                 className='h-24 w-24 rounded-full object-cover border border-gray-300 shadow'
+                onError={() => {
+                  console.error('Failed to load photo:', driver.photo, 'Constructed URL:', getFileUrl(driver.photo));
+                }}
               />
               <a
-                href={driver.photo}
+                href={getFileUrl(driver.photo)}
                 target='_blank'
                 rel='noopener'
                 className='text-amber-600 underline text-sm'
@@ -96,14 +113,14 @@ export const DriverProfile: React.FC = () => {
           {driver.salary !== undefined && <div><span className='font-medium'>Salary/Rate:</span> ₹{driver.salary.toLocaleString()}</div>}
           <div><span className='font-medium'>Date Of Joining:</span> {driver.dateOfJoining}</div>
           {driver.referenceNote && <div className='md:col-span-2'><span className='font-medium'>Reference Note:</span> {driver.referenceNote}</div>}
-          {driver.document && <div className='md:col-span-2'><span className='font-medium'>Document:</span> <a href={driver.document as string} target='_blank' rel='noopener' className='text-amber-600 underline'>View</a></div>}
+          {driver.document && <div className='md:col-span-2'><span className='font-medium'>Document:</span> <a href={getFileUrl(typeof driver.document === 'string' ? driver.document : driver.document.data)} target='_blank' rel='noopener' className='text-amber-600 underline'>View</a></div>}
           <div><span className='font-medium'>License Expiry:</span> {driver.licenseExpiry}</div>
           <div><span className='font-medium'>Police Verification Expiry:</span> {driver.policeVerificationExpiry}</div>
           {driver.licenseDocument && (
             <div className='md:col-span-2'>
               <span className='font-medium'>License Document:</span>{' '}
               <a
-                href={typeof driver.licenseDocument === 'string' ? driver.licenseDocument : driver.licenseDocument.data}
+                href={getFileUrl(typeof driver.licenseDocument === 'string' ? driver.licenseDocument : driver.licenseDocument.data)}
                 target='_blank'
                 rel='noopener'
                 className='text-amber-600 underline'
@@ -114,7 +131,7 @@ export const DriverProfile: React.FC = () => {
             <div className='md:col-span-2'>
               <span className='font-medium'>Police Verification Document:</span>{' '}
               <a
-                href={typeof driver.policeVerificationDocument === 'string' ? driver.policeVerificationDocument : driver.policeVerificationDocument.data}
+                href={getFileUrl(typeof driver.policeVerificationDocument === 'string' ? driver.policeVerificationDocument : driver.policeVerificationDocument.data)}
                 target='_blank'
                 rel='noopener'
                 className='text-amber-600 underline'
