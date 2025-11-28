@@ -3,7 +3,8 @@ import { Request, Response, NextFunction } from 'express';
 import * as service from '../services';
 import { driverSchema, updateDriverSchema, advanceSchema } from '../validation';
 import { upload } from '../middleware';
-import { uploadToCloudinary, isCloudinaryConfigured } from '../../config/cloudinary';
+// Cloudinary imports commented out - using local system uploads instead
+// import { uploadToCloudinary, isCloudinaryConfigured } from '../../config/cloudinary';
 import path from 'path';
 
 export const createDriver = async (req: Request, res: Response, next: NextFunction) => {
@@ -17,20 +18,14 @@ export const createDriver = async (req: Request, res: Response, next: NextFuncti
       dateOfJoining: new Date(data.dateOfJoining),
       status: data.status || 'active',
     };
-    // Handle uploaded files if present
+    // Handle uploaded files if present - Using local system uploads
     const files = req.files as Record<string, Express.Multer.File[]> | undefined;
-    const baseUrl = `${req.protocol}://${req.get('host')}`;
     const assign = async (field: string, targetField: string) => {
       const fArr = files?.[field];
       if (fArr && fArr[0]) {
-        if (isCloudinaryConfigured) {
-          const uploaded = await uploadToCloudinary(fArr[0].path, 'drivers');
-          (driverData as any)[targetField] = uploaded.url;
-          (driverData as any)[`${targetField}PublicId`] = uploaded.publicId;
-        } else {
-          const filename = path.basename(fArr[0].path);
-          (driverData as any)[targetField] = `${baseUrl}/uploads/${filename}`;
-        }
+        // Save only the filename, not the full URL
+        const filename = path.basename(fArr[0].path);
+        (driverData as any)[targetField] = filename;
       }
     };
     await Promise.all([
@@ -73,18 +68,12 @@ export const updateDriver = async (req: Request, res: Response, next: NextFuncti
     if (updateData.policeVerificationExpiry) updateData.policeVerificationExpiry = new Date(updateData.policeVerificationExpiry);
     if (updateData.dateOfJoining) updateData.dateOfJoining = new Date(updateData.dateOfJoining as any);
     const ufiles = req.files as Record<string, Express.Multer.File[]> | undefined;
-    const baseUrl = `${req.protocol}://${req.get('host')}`;
     const assign = async (field: string, targetField: string) => {
       const fArr = ufiles?.[field];
       if (fArr && fArr[0]) {
-        if (isCloudinaryConfigured) {
-          const uploaded = await uploadToCloudinary(fArr[0].path, 'drivers');
-          (updateData as any)[targetField] = uploaded.url;
-          (updateData as any)[`${targetField}PublicId`] = uploaded.publicId;
-        } else {
-          const filename = path.basename(fArr[0].path);
-          (updateData as any)[targetField] = `${baseUrl}/uploads/${filename}`;
-        }
+        // Save only the filename, not the full URL
+        const filename = path.basename(fArr[0].path);
+        (updateData as any)[targetField] = filename;
       }
     };
     await Promise.all([

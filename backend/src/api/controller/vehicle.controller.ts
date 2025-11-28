@@ -3,7 +3,9 @@ import { Request, Response } from 'express';
 import * as service from '../services';
 import { vehicleSchema, updateVehicleSchema } from '../validation';
 import { upload } from '../middleware';
-import { uploadToCloudinary } from '../../config/cloudinary';
+// Cloudinary import commented out - using local system uploads instead
+// import { uploadToCloudinary } from '../../config/cloudinary';
+import path from 'path';
 
 export const createVehicle = async (req: Request, res: Response) => {
   const data = vehicleSchema.parse(req.body);
@@ -16,15 +18,15 @@ export const createVehicle = async (req: Request, res: Response) => {
     pollutionExpiry: new Date(data.pollutionExpiry),
     status: 'active' as const,
   };
-  // Upload files to Cloudinary if present
+  // Upload files to local system if present (Cloudinary commented out)
   const files = (req as any).files as Record<string, Express.Multer.File[]> | undefined;
   if (files) {
     const assign = async (field: string, targetField: string) => {
       const fArr = files[field];
       if (fArr && fArr[0]) {
-        const uploaded = await uploadToCloudinary(fArr[0].path, 'vehicles');
-        (vehicleData as any)[targetField] = uploaded.url; // secure URL
-        // If you later store publicId, add: (vehicleData as any)[`${targetField}PublicId`] = uploaded.publicId;
+        // Save only the filename, not the full URL
+        const filename = path.basename(fArr[0].path);
+        (vehicleData as any)[targetField] = filename;
       }
     };
     await assign('photo','photo');
@@ -58,15 +60,15 @@ export const updateVehicle = async (req: Request, res: Response) => {
   if (updateData.permitExpiry) updateData.permitExpiry = new Date(updateData.permitExpiry);
   if (updateData.pollutionExpiry) updateData.pollutionExpiry = new Date(updateData.pollutionExpiry);
   
-  // Upload files to Cloudinary if present
+  // Upload files to local system if present (Cloudinary commented out)
   const files = (req as any).files as Record<string, Express.Multer.File[]> | undefined;
   if (files) {
     const assign = async (field: string, targetField: string) => {
       const fArr = files[field];
       if (fArr && fArr[0]) {
-        const uploaded = await uploadToCloudinary(fArr[0].path, 'vehicles');
-        (updateData as any)[targetField] = uploaded.url;
-        // Optionally persist publicId too
+        // Save only the filename, not the full URL
+        const filename = path.basename(fArr[0].path);
+        (updateData as any)[targetField] = filename;
       }
     };
     await assign('photo','photo');

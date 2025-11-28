@@ -90,23 +90,31 @@ export const CreateDriver: React.FC = () => {
         throw new Error(msg);
       }
       const created = await res.json();
+      // Helper to convert filename to full URL if needed
+      const getFileUrl = (filename: string | undefined): string | undefined => {
+        if (!filename) return undefined;
+        if (filename.startsWith('http://') || filename.startsWith('https://')) return filename;
+        const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+        const baseUrl = apiBaseUrl.replace('/api', '');
+        return `${baseUrl}/uploads/${filename}`;
+      };
       const normalized = {
         id: created._id || created.id || '',
         name: created.name as string,
         phone: created.phone as string,
         licenseNumber: created.licenseNumber as string,
         aadhaar: created.aadhaar as string,
-        photo: created.photo as string | undefined,
+        photo: getFileUrl(created.photo),
         vehicleType: created.vehicleType as 'owned' | 'rented',
         licenseExpiry: new Date(created.licenseExpiry).toISOString(),
         policeVerificationExpiry: new Date(created.policeVerificationExpiry).toISOString(),
-        licenseDocument: created.licenseDocument as string | undefined,
-        policeVerificationDocument: created.policeVerificationDocument as string | undefined,
+        licenseDocument: getFileUrl(created.licenseDocument),
+        policeVerificationDocument: getFileUrl(created.policeVerificationDocument),
         paymentMode: created.paymentMode as 'per-trip' | 'daily' | 'monthly' | 'fuel-basis',
         salary: created.salary as number | undefined,
         dateOfJoining: created.dateOfJoining ? new Date(created.dateOfJoining).toISOString() : new Date().toISOString(),
         referenceNote: created.referenceNote as string | undefined,
-        document: created.document as string | undefined,
+        document: getFileUrl(created.document),
         advances: (created.advances || []) as Driver['advances'],
         status: created.status as 'active' | 'inactive',
         createdAt: new Date(created.createdAt || Date.now()).toISOString(),

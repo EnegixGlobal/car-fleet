@@ -10,6 +10,8 @@ import { Vehicle } from '../../types';
 import { vehicleCategoryAPI, VehicleCategoryDTO } from '../../services/api';
 import { useToast } from '../../hooks/useToast';
 
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
 export const VehicleList: React.FC = () => {
   const navigate = useNavigate();
   const { vehicles, vehiclesLoading, deleteVehicle } = useApp();
@@ -20,6 +22,18 @@ export const VehicleList: React.FC = () => {
   const [ownerFilter, setOwnerFilter] = useState<'all' | 'owned' | 'rented'>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // Helper to get full URL for uploaded files
+  const getFileUrl = (filename: string | undefined | null): string => {
+    if (!filename) return '';
+    // If it's already a full URL, return it as is
+    if (filename.startsWith('http://') || filename.startsWith('https://')) {
+      return filename;
+    }
+    // Remove /api from BASE_URL if present, then construct the URL
+    const baseUrl = BASE_URL.replace('/api', '');
+    return `${baseUrl}/uploads/${filename}`;
+  };
 
   let filteredVehicles = vehicles;
   if (statusFilter !== 'all') filteredVehicles = filteredVehicles.filter(v => v.status === statusFilter);
@@ -53,7 +67,7 @@ export const VehicleList: React.FC = () => {
       header: 'Photo',
       render: (vehicle: Vehicle) => (
         vehicle.photo ? (
-          <img src={vehicle.photo} alt="vehicle" className="h-10 w-16 object-cover rounded border" />
+          <img src={getFileUrl(vehicle.photo)} alt="vehicle" className="h-10 w-16 object-cover rounded border" />
         ) : (
           <div className="h-10 w-16 flex items-center justify-center rounded border bg-gray-50 text-gray-400">
             <Icon name="car" className="h-4 w-4" />
@@ -81,7 +95,7 @@ export const VehicleList: React.FC = () => {
       header: 'Doc',
       render: (vehicle: Vehicle) => (
         vehicle.document ? (
-          <a href={vehicle.document} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-amber-600 underline text-xs">
+          <a href={getFileUrl(vehicle.document)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-amber-600 underline text-xs">
             <Icon name="file" className="h-3 w-3" />
             {/\.pdf$/i.test(vehicle.document) ? 'PDF' : 'File'}
           </a>
