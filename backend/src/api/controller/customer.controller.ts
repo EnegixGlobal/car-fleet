@@ -10,7 +10,7 @@ export const createCustomer = async (req: Request, res: Response) => {
 
 export const getCustomers = async (req: Request, res: Response) => {
   const page = parseInt(req.query.page as string) || 1;
-  const limit = parseInt(req.query.limit as string) || 50;
+  const limit = parseInt(req.query.limit as string) || 100000; // Show all data by default
   const result = await service.getCustomers(page, limit);
   res.json(result);
 };

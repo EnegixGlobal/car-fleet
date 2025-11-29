@@ -15,7 +15,7 @@ export const createPayment = async (req: Request, res: Response, next: NextFunct
 export const getPayments = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
+    const limit = parseInt(req.query.limit as string) || 100000; // Show all data by default
     const result = await service.getPayments(page, limit);
     res.json(result);
   } catch (e) { next(e); }

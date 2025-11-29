@@ -12,7 +12,7 @@ export const createCompany = async (req: Request, res: Response) => {
 
 export const getCompanies = async (req: Request, res: Response) => {
   const page = parseInt(req.query.page as string) || 1;
-  const limit = parseInt(req.query.limit as string) || 10;
+  const limit = parseInt(req.query.limit as string) || 100000; // Show all data by default
   const filters = { outstandingGt: req.query.outstandingGt, minOutstanding: req.query.minOutstanding, startDate: req.query.startDate, endDate: req.query.endDate };
   const result = await service.getCompanies(page, limit, filters);
   res.json(result);

@@ -44,7 +44,7 @@ export const createDriver = async (req: Request, res: Response, next: NextFuncti
 export const getDrivers = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
+    const limit = parseInt(req.query.limit as string) || 100000; // Show all data by default
     const filters = { status: req.query.status, paymentMode: req.query.paymentMode };
     const result = await service.getDrivers(page, limit, filters);
     res.json(result);
