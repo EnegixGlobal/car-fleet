@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Icon } from '../../components/ui/Icon';
 
 interface Column<T> {
@@ -32,7 +32,7 @@ export function DataTable<T extends { id: string }>({
 }: DataTableProps<T>) {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
-  const [pageSize] = useState(10);
+  const [pageSize, setPageSize] = useState<number | 'all'>(25); // Default to 25 items per page
   const [sortKey, setSortKey] = useState<keyof T | undefined>(defaultSortKey);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>(defaultSortDirection);
 
@@ -59,9 +59,23 @@ export function DataTable<T extends { id: string }>({
   }) : filteredData;
 
   // Paginate data
-  const totalPages = Math.ceil(sortedData.length / pageSize);
-  const startIndex = (currentPage - 1) * pageSize;
-  const paginatedData = sortedData.slice(startIndex, startIndex + pageSize);
+  const effectivePageSize = pageSize === 'all' ? sortedData.length : pageSize;
+  const totalPages = effectivePageSize > 0 ? Math.ceil(sortedData.length / effectivePageSize) : 1;
+  const startIndex = (currentPage - 1) * effectivePageSize;
+  const paginatedData = sortedData.slice(startIndex, startIndex + effectivePageSize);
+
+  // Handle page size change
+  const handlePageSizeChange = (newSize: number | 'all') => {
+    setPageSize(newSize);
+    setCurrentPage(1); // Reset to first page when changing page size
+  };
+
+  // Reset to page 1 if current page is out of bounds after filtering/sorting
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(1);
+    }
+  }, [totalPages, currentPage]);
 
   const toggleSort = (key: keyof T) => {
     if (sortKey === key) {
@@ -145,63 +159,97 @@ export function DataTable<T extends { id: string }>({
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {paginatedData.map((item) => (
-              <tr
-                key={item.id}
-                onClick={() => onRowClick?.(item)}
-                className={`${
-                  onRowClick ? 'cursor-pointer hover:bg-gray-50' : ''
-                }`}
-              >
-                {columns.map((column) => (
-                  <td
-                    key={String(column.key)}
-                    className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
-                  >
-                    {column.render ? column.render(item) : String(item[column.key])}
-                  </td>
-                ))}
-                {actions && (
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    {actions(item)}
-                  </td>
-                )}
+            {paginatedData.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={columns.length + (actions ? 1 : 0)}
+                  className="px-6 py-8 text-center text-sm text-gray-500"
+                >
+                  {sortedData.length === 0
+                    ? 'No data available'
+                    : 'No results match your search criteria'}
+                </td>
               </tr>
-            ))}
+            ) : (
+              paginatedData.map((item) => (
+                <tr
+                  key={item.id}
+                  onClick={() => onRowClick?.(item)}
+                  className={`${
+                    onRowClick ? 'cursor-pointer hover:bg-gray-50' : ''
+                  }`}
+                >
+                  {columns.map((column) => (
+                    <td
+                      key={String(column.key)}
+                      className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
+                    >
+                      {column.render ? column.render(item) : String(item[column.key])}
+                    </td>
+                  ))}
+                  {actions && (
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      {actions(item)}
+                    </td>
+                  )}
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
 
       {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="px-6 py-3 border-t border-gray-200 flex items-center justify-between">
-          <div className="text-sm text-gray-700">
-            Showing {startIndex + 1} to {Math.min(startIndex + pageSize, filteredData.length)} of{' '}
-            {filteredData.length} results
+      <div className="px-6 py-3 border-t border-gray-200">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-700">Show:</span>
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                const value = e.target.value;
+                handlePageSizeChange(value === 'all' ? 'all' : parseInt(value));
+              }}
+              className="px-5 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-amber-500 focus:border-amber-500 bg-white"
+            >
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+              <option value="all">All</option>
+            </select>
+            <span className="text-sm text-gray-700">entries</span>
           </div>
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-              disabled={currentPage === 1}
-              className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50"
-              aria-label="Previous page"
-            >
-              <Icon name="chevronLeft" className="h-4 w-4" />
-            </button>
-            <span className="px-3 py-1 text-sm text-gray-700">
-              Page {currentPage} of {totalPages}
-            </span>
-            <button
-              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-              disabled={currentPage === totalPages}
-              className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50"
-              aria-label="Next page"
-            >
-              <Icon name="chevronRight" className="h-4 w-4" />
-            </button>
+          
+          <div className="flex items-center gap-4">
+            <div className="text-sm text-gray-700">
+              Showing {sortedData.length > 0 ? startIndex + 1 : 0} to {Math.min(startIndex + effectivePageSize, sortedData.length)} of{' '}
+              {sortedData.length} results
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1 || pageSize === 'all'}
+                className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                aria-label="Previous page"
+              >
+                <Icon name="chevronLeft" className="h-4 w-4" />
+              </button>
+              <span className="px-3 py-1 text-sm text-gray-700">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                disabled={currentPage === totalPages || pageSize === 'all'}
+                className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                aria-label="Next page"
+              >
+                <Icon name="chevronRight" className="h-4 w-4" />
+              </button>
+            </div>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

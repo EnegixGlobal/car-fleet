@@ -38,7 +38,7 @@ export const createVehicle = async (req: Request, res: Response) => {
 
 export const getVehicles = async (req: Request, res: Response) => {
   const page = parseInt(req.query.page as string) || 1;
-  const limit = parseInt(req.query.limit as string) || 10;
+  const limit = parseInt(req.query.limit as string) || 100000; // Show all data by default
   const filters = { status: req.query.status, owner: req.query.owner, category: req.query.category };
   const result = await service.getVehicles(page, limit, filters);
   res.json(result);

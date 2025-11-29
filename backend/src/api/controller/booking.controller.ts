@@ -44,7 +44,7 @@ export const createBooking = async (req: AuthRequest, res: Response) => {
 
 export const getBookings = async (req: AuthRequest, res: Response) => {
   const page = parseInt(req.query.page as string) || 1;
-  const limit = parseInt(req.query.limit as string) || 10;
+  const limit = parseInt(req.query.limit as string) || 100000; // Show all data by default
   const filters = {
     status: req.query.status,
     source: req.query.source,
