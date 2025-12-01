@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useApp } from "../../context/AppContext";
 import { useAuth } from "../../hooks/useAuth";
@@ -229,6 +229,27 @@ export const BookingDetails: React.FC = () => {
   const vehicle = booking.vehicleId
     ? vehicles.find((v) => v.id === booking.vehicleId)
     : null;
+
+  const vehicleCategoryLabel = useMemo(() => {
+    if (vehicle?.category) {
+      return vehicle.categoryDescription
+        ? `${vehicle.category} - ${vehicle.categoryDescription}`
+        : vehicle.category;
+    }
+
+    if (booking.vehicleCategoryId) {
+      const category = vehicleCategories.find(
+        (c) => c.id === booking.vehicleCategoryId
+      );
+      if (category) {
+        return category.description
+          ? `${category.name} - ${category.description}`
+          : category.name;
+      }
+    }
+
+    return "Not assigned";
+  }, [vehicle, booking.vehicleCategoryId, vehicleCategories]);
 
   const onAddExpense = async (data: ExpenseForm) => {
     try {
@@ -605,18 +626,7 @@ export const BookingDetails: React.FC = () => {
                   <div>
                     <p className="font-medium">Vehicle Category</p>
                     <p className="text-sm text-gray-600">
-                      {booking?.vehicleCategoryId
-                        ? (() => {
-                            const category = vehicleCategories.find(
-                              (c) => c.id === booking.vehicleCategoryId
-                            );
-                            return category
-                              ? category.description
-                                ? `${category.name} - ${category.description}`
-                                : category.name
-                              : "Not specified";
-                          })()
-                        : "Not assigned"}
+                      {vehicleCategoryLabel}
                     </p>
                   </div>
                 </div>
@@ -1106,12 +1116,13 @@ export const BookingDetails: React.FC = () => {
           </Card>
 
           {/* Quick Actions */}
+          {hasRole(["admin", "dispatcher"]) && (
           <Card>
             <CardHeader>
               <h3 className="text-lg font-medium text-gray-900">Actions</h3>
             </CardHeader>
             <CardContent className="space-y-3">
-              {hasRole(["admin", "dispatcher", "driver"]) && (
+              {hasRole(["admin", "dispatcher"]) && (
                 <Button
                   variant="outline"
                   className="w-full"
@@ -1273,6 +1284,7 @@ export const BookingDetails: React.FC = () => {
               )}
             </CardContent>
           </Card>
+           )}
         </div>
       </div>
 
