@@ -7,7 +7,7 @@ import { Select } from "../../components/ui/Select";
 import { DataTable } from "../../components/common/DataTable";
 import { Icon } from "../../components/ui/Icon";
 import { Modal } from "../../components/ui/Modal";
-import { format, startOfMonth, endOfMonth } from "date-fns";
+import { format, endOfMonth } from "date-fns";
 import type {
   Driver,
   Vehicle,
@@ -55,12 +55,8 @@ const INDIVIDUAL_FILTER = "__INDIVIDUAL__";
 
 export const CompanyReport: React.FC = () => {
   const { bookings, drivers, vehicles, companies } = useApp();
-  const [from, setFrom] = React.useState(
-    format(startOfMonth(new Date()), "yyyy-MM-dd")
-  );
-  const [to, setTo] = React.useState(
-    format(endOfMonth(new Date()), "yyyy-MM-dd")
-  );
+  const [from, setFrom] = React.useState<string>("");
+  const [to, setTo] = React.useState<string>("");
   const [companyId, setCompanyId] = React.useState<string>("");
   const [month, setMonth] = React.useState<string>("");
   const [year, setYear] = React.useState<string>("");
@@ -87,14 +83,16 @@ export const CompanyReport: React.FC = () => {
   };
 
   const generateRows = async (customFrom?: string, customTo?: string) => {
-    const startDate = customFrom || from;
-    const endDate = customTo || to;
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    const startDateStr = customFrom ?? from;
+    const endDateStr = customTo ?? to;
+    const start = startDateStr ? new Date(startDateStr) : null;
+    const end = endDateStr ? new Date(endDateStr) : null;
     const isIndividualFilter = companyId === INDIVIDUAL_FILTER;
     const filtered = bookings.filter((b) => {
       const dt = new Date(b.startDate);
-      const inRange = dt >= start && dt <= end;
+      const inRange =
+        (!start || dt >= start) &&
+        (!end || dt <= end);
       const matchesCompany = companyId
         ? isIndividualFilter
           ? b.bookingSource === "individual"
@@ -214,7 +212,7 @@ export const CompanyReport: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `company-report-${from}-to-${to}.csv`;
+    a.download = `company-report-${from || "all"}-to-${to || "all"}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -249,7 +247,7 @@ export const CompanyReport: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `company-report-${from}-to-${to}.xls`;
+    a.download = `company-report-${from || "all"}-to-${to || "all"}.xls`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -297,7 +295,9 @@ export const CompanyReport: React.FC = () => {
     w.document.write(
       "<html><head><title>Company Report</title><style>table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:6px;font-size:12px}th{background:#f5f5f5}</style></head><body>"
     );
-    w.document.write(`<h3>Company Report (${from} to ${to})</h3>`);
+    w.document.write(
+      `<h3>Company Report (${from || "All"} to ${to || "All"})</h3>`
+    );
     w.document.write(
       "<table><thead><tr><th>S.No</th><th>Company Name</th><th>Booking Date</th><th>Customer Name</th><th>From / To</th><th>Booking Amount</th><th>Driver Name</th><th>Advance Received</th><th>Driver Expenses</th><th>Driver Received</th><th>Vehicle</th><th>Created Date</th></tr></thead><tbody>"
     );
