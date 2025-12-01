@@ -46,14 +46,18 @@ if (cluster.isMaster) {
   //   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   //   allowedHeaders: ['Content-Type', 'Authorization'],
   // }));
- app.use(
-   cors({
-     origin: ["https://crm.ranchitravels.com", "http://localhost:5173"],
-     credentials: true,
-     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-     allowedHeaders: ["Content-Type", "Authorization"],
-   })
- );
+  app.use(
+    cors({
+      origin: [
+        "https://crm.ranchitravels.com",
+        "http://localhost:5173",
+        "https://car-fleet-eta.vercel.app",
+      ],
+      credentials: true,
+      methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+      allowedHeaders: ["Content-Type", "Authorization"],
+    })
+  );
 
   app.use(express.json());
   app.use(apiLimiter);
