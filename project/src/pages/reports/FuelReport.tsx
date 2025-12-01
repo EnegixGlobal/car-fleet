@@ -8,7 +8,7 @@ import { Icon } from '../../components/ui/Icon';
 import { fuelAPI, FuelEntryDTO, bookingAPI } from '../../services/api';
 import { DriverFinancePayment } from '../../types';
 import { useApp } from '../../context/AppContext';
-import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { format, endOfMonth } from 'date-fns';
 
 interface FuelRow {
   id: string;
@@ -28,8 +28,8 @@ interface FuelRow {
 
 export const FuelReport: React.FC = () => {
   const { vehicles, bookings, drivers } = useApp();
-  const [from, setFrom] = React.useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
-  const [to, setTo] = React.useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [from, setFrom] = React.useState<string>('');
+  const [to, setTo] = React.useState<string>('');
   const [vehicleId, setVehicleId] = React.useState('');
   const [bookingId, setBookingId] = React.useState('');
   const [month, setMonth] = React.useState('');
@@ -108,16 +108,17 @@ export const FuelReport: React.FC = () => {
   }, [loadAllFuelBasisDriverPayments]);
 
   const generateRows = React.useCallback(() => {
-    const start = new Date(from);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(to);
-    end.setHours(23, 59, 59, 999);
+    const start = from ? new Date(from) : null;
+    if (start) start.setHours(0, 0, 0, 0);
+    const end = to ? new Date(to) : null;
+    if (end) end.setHours(23, 59, 59, 999);
     
     // Process fuel entries
     const fuelRows: FuelRow[] = all
       .filter(f => {
         const dt = new Date(f.fuelFillDate);
-        if (dt < start || dt > end) return false;
+        if (start && dt < start) return false;
+        if (end && dt > end) return false;
         if (vehicleId && f.vehicleId !== vehicleId) return false;
         if (bookingId && f.bookingId !== bookingId) return false;
         return true;
@@ -147,7 +148,8 @@ export const FuelReport: React.FC = () => {
     const paymentRows: FuelRow[] = driverPayments
       .filter(p => {
         const dt = new Date(p.date);
-        if (dt < start || dt > end) return false;
+        if (start && dt < start) return false;
+        if (end && dt > end) return false;
         if (!p.bookingId) return false;
         const bk = bookings.find(b => b.id === p.bookingId);
         if (vehicleId && bk?.vehicleId !== vehicleId) return false;
@@ -211,7 +213,7 @@ export const FuelReport: React.FC = () => {
     const csv = [header.join(','), ...lines].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = `fuel-report-${from}-to-${to}.csv`; a.click(); URL.revokeObjectURL(url);
+    const a = document.createElement('a'); a.href = url; a.download = `fuel-report-${from || 'all'}-to-${to || 'all'}.csv`; a.click(); URL.revokeObjectURL(url);
   };
   const exportExcel = () => {
     if (rows.length === 0) return;
@@ -226,7 +228,7 @@ export const FuelReport: React.FC = () => {
       </table>`;
     const blob = new Blob([table], { type: 'application/vnd.ms-excel' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = `fuel-report-${from}-to-${to}.xls`; a.click(); URL.revokeObjectURL(url);
+    const a = document.createElement('a'); a.href = url; a.download = `fuel-report-${from || 'all'}-to-${to || 'all'}.xls`; a.click(); URL.revokeObjectURL(url);
   };
   const exportCopy = async () => {
     if (rows.length === 0) return;
@@ -249,7 +251,7 @@ export const FuelReport: React.FC = () => {
     const w = window.open('', '_blank');
     if (!w) return;
     w.document.write('<html><head><title>Fuel Report</title><style>table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:6px;font-size:12px}th{background:#f5f5f5}</style></head><body>');
-    w.document.write(`<h3>Fuel Report (${from} to ${to})</h3>`);
+    w.document.write(`<h3>Fuel Report (${from || 'All'} to ${to || 'All'})</h3>`);
     w.document.write('<table><thead><tr><th>S.No</th><th>Fuel Date</th><th>Vehicle</th><th>Booking</th><th>Driver</th><th>Total (Km)</th><th>Mileage (km/L)</th><th>QTY (L)</th><th>Fuel Rate</th><th>Total Amt</th></tr></thead><tbody>');
     rows.forEach(r => { w.document.write(`<tr><td>${r.sNo}</td><td>${r.fuelFillDate}</td><td>${r.vehicle}</td><td>${r.booking}</td><td>${r.driver}</td><td>${r.totalKm || ''}</td><td>${r.mileage || ''}</td><td>${r.qty}</td><td>${r.rate}</td><td>${r.total}</td></tr>`); });
     w.document.write('</tbody></table></body></html>');

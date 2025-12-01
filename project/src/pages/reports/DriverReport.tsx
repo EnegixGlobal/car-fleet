@@ -8,7 +8,7 @@ import { DataTable } from "../../components/common/DataTable";
 import { Icon } from "../../components/ui/Icon";
 import { Modal } from "../../components/ui/Modal";
 import { Badge } from "../../components/ui/Badge";
-import { format, startOfMonth, endOfMonth } from "date-fns";
+import { format, endOfMonth } from "date-fns";
 import type { Driver, Vehicle, DriverFinancePayment } from "../../types";
 import { financeAPI, bookingAPI } from "../../services/api";
 
@@ -62,12 +62,8 @@ export const DriverReport: React.FC = () => {
         maximumFractionDigits: 2,
       })
       : "0.00";
-  const [from, setFrom] = React.useState(
-    format(startOfMonth(new Date()), "yyyy-MM-dd")
-  );
-  const [to, setTo] = React.useState(
-    format(endOfMonth(new Date()), "yyyy-MM-dd")
-  );
+  const [from, setFrom] = React.useState<string>("");
+  const [to, setTo] = React.useState<string>("");
   const [driverId, setDriverId] = React.useState<string>("");
   const [month, setMonth] = React.useState<string>("");
   const [year, setYear] = React.useState<string>("");
@@ -88,17 +84,30 @@ export const DriverReport: React.FC = () => {
 
   const driversOptions = drivers.map((d) => ({ value: d.id, label: d.name }));
 
+  const isWithinRange = React.useCallback(
+    (date: Date) => {
+      if (from) {
+        const startDate = new Date(from);
+        if (date < startDate) return false;
+      }
+      if (to) {
+        const endDate = new Date(to);
+        if (date > endDate) return false;
+      }
+      return true;
+    },
+    [from, to]
+  );
+
   // Derived data for Trip Payment section
   const filteredBookings = React.useMemo(() => {
-    const start = new Date(from);
-    const end = new Date(to);
     return bookings.filter((b) => {
       const dt = new Date(b.startDate);
-      const inRange = dt >= start && dt <= end;
-      const matchesDriver = driverId ? b.driverId === driverId : false;
+      const inRange = isWithinRange(dt);
+      const matchesDriver = driverId ? b.driverId === driverId : true;
       return inRange && matchesDriver;
     });
-  }, [bookings, driverId, from, to]);
+  }, [bookings, driverId, isWithinRange]);
 
   const bookingPayables = React.useMemo(
     () =>
@@ -111,11 +120,6 @@ export const DriverReport: React.FC = () => {
         // console.log("baseDriverExpenses 1", baseDriverExpenses);
 
         const advanceReceived = b.advanceReceived || 0;
-        const paymentTotal = (b.payments || []).reduce(
-          (sum, p) => sum + (p.amount || 0),
-          0
-        );
-        const advanceToDriver = advanceReceived + paymentTotal;
         const paymentsForBooking = (driverPayments || []).filter(
           (p) => p.bookingId === b.id
         );
@@ -267,15 +271,13 @@ export const DriverReport: React.FC = () => {
   const generateRows = async () => {
     try {
       setGeneratingReport(true);
-      const start = new Date(from);
-      const end = new Date(to);
       // Ensure we have latest driver payments before computing rows
       const paymentsForDriver: DriverFinancePayment[] = driverId
         ? await fetchDriverPayments(driverId)
         : driverPayments;
       const filtered = bookings.filter((b) => {
         const dt = new Date(b.startDate);
-        const inRange = dt >= start && dt <= end;
+        const inRange = isWithinRange(dt);
         const matchesDriver = driverId ? b.driverId === driverId : true;
         return inRange && matchesDriver;
       });
@@ -452,7 +454,7 @@ export const DriverReport: React.FC = () => {
   React.useEffect(() => {
     generateRows();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bookings, drivers, vehicles]);
+  }, [bookings, drivers, vehicles, isWithinRange]);
 
   const exportCSV = () => {
     if (rows.length === 0) return;
@@ -493,7 +495,7 @@ export const DriverReport: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `driver-report-${from}-to-${to}.csv`;
+    a.download = `driver-report-${from || "all"}-to-${to || "all"}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -530,7 +532,7 @@ export const DriverReport: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `driver-report-${from}-to-${to}.xls`;
+    a.download = `driver-report-${from || "all"}-to-${to || "all"}.xls`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -580,7 +582,9 @@ export const DriverReport: React.FC = () => {
     w.document.write(
       "<html><head><title>Driver Report</title><style>table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:6px;font-size:12px}th{background:#f5f5f5}</style></head><body>"
     );
-    w.document.write(`<h3>Driver Report (${from} to ${to})</h3>`);
+    w.document.write(
+      `<h3>Driver Report (${from || "All"} to ${to || "All"})</h3>`
+    );
     w.document.write(
       "<table><thead><tr><th>S.No</th><th>Booking Date</th><th>Customer Name</th><th>From / To</th><th>Booking Amount</th><th>Driver Name</th><th>Advance to Driver</th><th>Driver Expenses</th><th>On duty Paid</th><th>Driver Received</th><th>Amount Payable</th><th>Vehicle</th><th>Created Date</th></tr></thead><tbody>"
     );

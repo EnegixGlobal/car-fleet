@@ -7,7 +7,7 @@ import { DataTable } from '../../components/common/DataTable';
 import { Icon } from '../../components/ui/Icon';
 import { Modal } from "../../components/ui/Modal";
 import { useApp } from '../../context/AppContext';
-import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { format, endOfMonth } from 'date-fns';
 
 import type {
   DriverFinancePayment,
@@ -52,8 +52,8 @@ interface ReportRow {
 
 export const BookingReport: React.FC = () => {
   const { bookings, drivers, vehicles } = useApp();
-  const [from, setFrom] = React.useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
-  const [to, setTo] = React.useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [from, setFrom] = React.useState<string>('');
+  const [to, setTo] = React.useState<string>('');
   const [driverId, setDriverId] = React.useState('');
   const [vehicleId, setVehicleId] = React.useState('');
   const [status, setStatus] = React.useState<''|'booked'|'ongoing'|'completed'|'yet-to-start'|'canceled'>('');
@@ -75,11 +75,12 @@ export const BookingReport: React.FC = () => {
   };
 
   const generateRows = async () => {
-    const start = new Date(from);
-    const end = new Date(to);
+    const start = from ? new Date(from) : null;
+    const end = to ? new Date(to) : null;
     const filtered = bookings.filter((b) => {
       const dt = new Date(b.startDate);
-      if (dt < start || dt > end) return false;
+      if (start && dt < start) return false;
+      if (end && dt > end) return false;
       if (driverId && b.driverId !== driverId) return false;
       if (vehicleId && b.vehicleId !== vehicleId) return false;
       if (status && b.status !== status) return false;
@@ -172,7 +173,7 @@ export const BookingReport: React.FC = () => {
     const csv = [header.join(','), ...lines].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = `booking-report-${from}-to-${to}.csv`; a.click(); URL.revokeObjectURL(url);
+    const a = document.createElement('a'); a.href = url; a.download = `booking-report-${from || 'all'}-to-${to || 'all'}.csv`; a.click(); URL.revokeObjectURL(url);
   };
   const exportExcel = () => {
     if (rows.length === 0) return;
@@ -187,7 +188,7 @@ export const BookingReport: React.FC = () => {
       </table>`;
     const blob = new Blob([table], { type: 'application/vnd.ms-excel' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = `booking-report-${from}-to-${to}.xls`; a.click(); URL.revokeObjectURL(url);
+    const a = document.createElement('a'); a.href = url; a.download = `booking-report-${from || 'all'}-to-${to || 'all'}.xls`; a.click(); URL.revokeObjectURL(url);
   };
   const exportCopy = async () => {
     if (rows.length === 0) return;
@@ -199,7 +200,7 @@ export const BookingReport: React.FC = () => {
     const w = window.open('', '_blank');
     if (!w) return;
     w.document.write('<html><head><title>Booking Report</title><style>table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:6px;font-size:12px}th{background:#f5f5f5}</style></head><body>');
-    w.document.write(`<h3>Booking Report (${from} to ${to})</h3>`);
+    w.document.write(`<h3>Booking Report (${from || 'All'} to ${to || 'All'})</h3>`);
     w.document.write('<table><thead><tr><th>S.No</th><th>Booking Date</th><th>Customer Name</th><th>From / To</th><th>Booking Amount</th><th>Advance Received</th><th>Driver Expenses</th><th>Driver Received</th><th>Driver Name</th><th>Vehicle</th><th>Status</th><th>Created Date</th></tr></thead><tbody>');
     rows.forEach(r => { w.document.write(`<tr><td>${r.sNo}</td><td>${r.bookingDate}</td><td>${r.customerName}</td><td>${r.route}</td><td>${r.bookingAmount}</td><td>${r.advanceReceived}</td><td>${r.expenses}</td><td>${r.balance}</td><td>${r.driverName}</td><td>${r.vehicle}</td><td>${r.status}</td><td>${r.createdAt}</td></tr>`); });
     w.document.write('</tbody></table></body></html>');
