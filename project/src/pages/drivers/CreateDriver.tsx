@@ -76,7 +76,7 @@ export const CreateDriver: React.FC = () => {
       });
       if (photoFile && photoFile[0]) fd.append('photo', photoFile[0]);
       if (documentFile && documentFile[0]) fd.append('licenseDocument', documentFile[0]);
-      const res = await fetch(`${import.meta.env.FRONTEND_URL || 'http://localhost:3000/api'}/drivers`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/drivers`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')||''}` },
         body: fd,
@@ -94,7 +94,7 @@ export const CreateDriver: React.FC = () => {
       const getFileUrl = (filename: string | undefined): string | undefined => {
         if (!filename) return undefined;
         if (filename.startsWith('http://') || filename.startsWith('https://')) return filename;
-        const apiBaseUrl = import.meta.env.FRONTEND_URL || 'http://localhost:3000/api';
+        const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
         const baseUrl = apiBaseUrl.replace('/api', '');
         return `${baseUrl}/uploads/${filename}`;
       };

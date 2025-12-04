@@ -26,7 +26,7 @@ type RawDriverPayment = {
 import toast from "react-hot-toast";
 
 const API_BASE_URL =
-  import.meta.env.FRONTEND_URL || "http://localhost:3000/api";
+  import.meta.env.VITE_API_URL || "http://localhost:3000/api";
 
 // Create axios instance
 const api = axios.create({
@@ -495,8 +495,8 @@ export const vehicleAPI = {
         typeof raw.pollutionExpiry === "string"
           ? raw.pollutionExpiry
           : new Date(raw.pollutionExpiry).toISOString(),
-      photo: raw.photo ? (raw.photo.startsWith('http') ? raw.photo : `${(import.meta.env.FRONTEND_URL || 'http://localhost:3000/api').replace('/api', '')}/uploads/${raw.photo}`) : undefined,
-      document: raw.document ? (raw.document.startsWith('http') ? raw.document : `${(import.meta.env.FRONTEND_URL || 'http://localhost:3000/api').replace('/api', '')}/uploads/${raw.document}`) : undefined,
+      photo: raw.photo ? (raw.photo.startsWith('http') ? raw.photo : `${(import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace('/api', '')}/uploads/${raw.photo}`) : undefined,
+      document: raw.document ? (raw.document.startsWith('http') ? raw.document : `${(import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace('/api', '')}/uploads/${raw.document}`) : undefined,
       status: raw.status,
       mileageTrips: raw.mileageTrips,
       mileageKm: raw.mileageKm,
@@ -664,10 +664,10 @@ export const driverAPI = {
         ? raw.createdAt
         : new Date(raw.createdAt || Date.now()).toISOString(),
       referenceNote: raw.referenceNote,
-      document: raw.document ? (raw.document.startsWith('http') ? raw.document : `${(import.meta.env.FRONTEND_URL || 'http://localhost:3000/api').replace('/api', '')}/uploads/${raw.document}`) : undefined,
-      photo: raw.photo ? (raw.photo.startsWith('http') ? raw.photo : `${(import.meta.env.FRONTEND_URL || 'http://localhost:3000/api').replace('/api', '')}/uploads/${raw.photo}`) : undefined,
-      licenseDocument: raw.licenseDocument ? (typeof raw.licenseDocument === 'string' && raw.licenseDocument.startsWith('http') ? raw.licenseDocument : typeof raw.licenseDocument === 'string' ? `${(import.meta.env.FRONTEND_URL || 'http://localhost:3000/api').replace('/api', '')}/uploads/${raw.licenseDocument}` : raw.licenseDocument) : undefined,
-      policeVerificationDocument: raw.policeVerificationDocument ? (typeof raw.policeVerificationDocument === 'string' && raw.policeVerificationDocument.startsWith('http') ? raw.policeVerificationDocument : typeof raw.policeVerificationDocument === 'string' ? `${(import.meta.env.FRONTEND_URL || 'http://localhost:3000/api').replace('/api', '')}/uploads/${raw.policeVerificationDocument}` : raw.policeVerificationDocument) : undefined,
+      document: raw.document ? (raw.document.startsWith('http') ? raw.document : `${(import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace('/api', '')}/uploads/${raw.document}`) : undefined,
+      photo: raw.photo ? (raw.photo.startsWith('http') ? raw.photo : `${(import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace('/api', '')}/uploads/${raw.photo}`) : undefined,
+      licenseDocument: raw.licenseDocument ? (typeof raw.licenseDocument === 'string' && raw.licenseDocument.startsWith('http') ? raw.licenseDocument : typeof raw.licenseDocument === 'string' ? `${(import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace('/api', '')}/uploads/${raw.licenseDocument}` : raw.licenseDocument) : undefined,
+      policeVerificationDocument: raw.policeVerificationDocument ? (typeof raw.policeVerificationDocument === 'string' && raw.policeVerificationDocument.startsWith('http') ? raw.policeVerificationDocument : typeof raw.policeVerificationDocument === 'string' ? `${(import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace('/api', '')}/uploads/${raw.policeVerificationDocument}` : raw.policeVerificationDocument) : undefined,
       advances: (raw.advances || []).map((a) => ({
         id: a.id || a._id || "",
         amount: a.amount,
