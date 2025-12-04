@@ -495,30 +495,8 @@ export const vehicleAPI = {
         typeof raw.pollutionExpiry === "string"
           ? raw.pollutionExpiry
           : new Date(raw.pollutionExpiry).toISOString(),
-      photo: raw.photo ? (() => {
-        // If already a full URL, return as is
-        if (raw.photo.startsWith('http://') || raw.photo.startsWith('https://')) {
-          return raw.photo;
-        }
-        // If it already contains /uploads/, it might be a partial URL - extract just filename
-        const filename = raw.photo.includes('/uploads/') 
-          ? raw.photo.split('/uploads/').pop() || raw.photo
-          : raw.photo;
-        const baseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace('/api', '');
-        return `${baseUrl}/uploads/${filename}`;
-      })() : undefined,
-      document: raw.document ? (() => {
-        // If already a full URL, return as is
-        if (raw.document.startsWith('http://') || raw.document.startsWith('https://')) {
-          return raw.document;
-        }
-        // If it already contains /uploads/, it might be a partial URL - extract just filename
-        const filename = raw.document.includes('/uploads/') 
-          ? raw.document.split('/uploads/').pop() || raw.document
-          : raw.document;
-        const baseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace('/api', '');
-        return `${baseUrl}/uploads/${filename}`;
-      })() : undefined,
+      photo: raw.photo ? (raw.photo.startsWith('http') ? raw.photo : `${(import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace('/api', '')}/uploads/${raw.photo}`) : undefined,
+      document: raw.document ? (raw.document.startsWith('http') ? raw.document : `${(import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace('/api', '')}/uploads/${raw.document}`) : undefined,
       status: raw.status,
       mileageTrips: raw.mileageTrips,
       mileageKm: raw.mileageKm,
@@ -686,56 +664,10 @@ export const driverAPI = {
         ? raw.createdAt
         : new Date(raw.createdAt || Date.now()).toISOString(),
       referenceNote: raw.referenceNote,
-      document: raw.document ? (() => {
-        // If already a full URL, return as is
-        if (raw.document.startsWith('http://') || raw.document.startsWith('https://')) {
-          return raw.document;
-        }
-        // If it already contains /uploads/, it might be a partial URL - extract just filename
-        const filename = raw.document.includes('/uploads/') 
-          ? raw.document.split('/uploads/').pop() || raw.document
-          : raw.document;
-        const baseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace('/api', '');
-        return `${baseUrl}/uploads/${filename}`;
-      })() : undefined,
-      photo: raw.photo ? (() => {
-        // If already a full URL, return as is
-        if (raw.photo.startsWith('http://') || raw.photo.startsWith('https://')) {
-          return raw.photo;
-        }
-        // If it already contains /uploads/, it might be a partial URL - extract just filename
-        const filename = raw.photo.includes('/uploads/') 
-          ? raw.photo.split('/uploads/').pop() || raw.photo
-          : raw.photo;
-        const baseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace('/api', '');
-        return `${baseUrl}/uploads/${filename}`;
-      })() : undefined,
-      licenseDocument: raw.licenseDocument ? (() => {
-        if (typeof raw.licenseDocument !== 'string') return raw.licenseDocument;
-        // If already a full URL, return as is
-        if (raw.licenseDocument.startsWith('http://') || raw.licenseDocument.startsWith('https://')) {
-          return raw.licenseDocument;
-        }
-        // If it already contains /uploads/, extract just filename
-        const filename = raw.licenseDocument.includes('/uploads/') 
-          ? raw.licenseDocument.split('/uploads/').pop() || raw.licenseDocument
-          : raw.licenseDocument;
-        const baseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace('/api', '');
-        return `${baseUrl}/uploads/${filename}`;
-      })() : undefined,
-      policeVerificationDocument: raw.policeVerificationDocument ? (() => {
-        if (typeof raw.policeVerificationDocument !== 'string') return raw.policeVerificationDocument;
-        // If already a full URL, return as is
-        if (raw.policeVerificationDocument.startsWith('http://') || raw.policeVerificationDocument.startsWith('https://')) {
-          return raw.policeVerificationDocument;
-        }
-        // If it already contains /uploads/, extract just filename
-        const filename = raw.policeVerificationDocument.includes('/uploads/') 
-          ? raw.policeVerificationDocument.split('/uploads/').pop() || raw.policeVerificationDocument
-          : raw.policeVerificationDocument;
-        const baseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace('/api', '');
-        return `${baseUrl}/uploads/${filename}`;
-      })() : undefined,
+      document: raw.document ? (raw.document.startsWith('http') ? raw.document : `${(import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace('/api', '')}/uploads/${raw.document}`) : undefined,
+      photo: raw.photo ? (raw.photo.startsWith('http') ? raw.photo : `${(import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace('/api', '')}/uploads/${raw.photo}`) : undefined,
+      licenseDocument: raw.licenseDocument ? (typeof raw.licenseDocument === 'string' && raw.licenseDocument.startsWith('http') ? raw.licenseDocument : typeof raw.licenseDocument === 'string' ? `${(import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace('/api', '')}/uploads/${raw.licenseDocument}` : raw.licenseDocument) : undefined,
+      policeVerificationDocument: raw.policeVerificationDocument ? (typeof raw.policeVerificationDocument === 'string' && raw.policeVerificationDocument.startsWith('http') ? raw.policeVerificationDocument : typeof raw.policeVerificationDocument === 'string' ? `${(import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace('/api', '')}/uploads/${raw.policeVerificationDocument}` : raw.policeVerificationDocument) : undefined,
       advances: (raw.advances || []).map((a) => ({
         id: a.id || a._id || "",
         amount: a.amount,
@@ -1146,7 +1078,6 @@ export interface BookingDTO {
     paidOn: string;
   }[];
   finalPaid?: number;
-  settled?: boolean;
   billed: boolean;
   dutySlipSubmitted: boolean;
   dutySlipSubmittedToCompany: boolean;
@@ -1278,7 +1209,7 @@ export const bookingAPI = {
             : new Date(p.paidOn).toISOString(),
       })),
       finalPaid: raw.finalPaid,
-      settled: raw.settled || false,
+      settled: raw.settled,
       billed: raw.billed,
       dutySlipSubmitted: raw.dutySlipSubmitted,
       dutySlipSubmittedToCompany: raw.dutySlipSubmittedToCompany,
