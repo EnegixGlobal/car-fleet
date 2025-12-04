@@ -10,7 +10,7 @@ import { Vehicle } from '../../types';
 import { vehicleCategoryAPI, VehicleCategoryDTO } from '../../services/api';
 import { useToast } from '../../hooks/useToast';
 
-const BASE_URL = import.meta.env.FRONTEND_URL || 'http://localhost:3000/api';
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 export const VehicleList: React.FC = () => {
   const navigate = useNavigate();
