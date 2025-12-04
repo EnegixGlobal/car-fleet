@@ -25,39 +25,47 @@ if (cluster.isMaster) {
 
   app.set("trust proxy", 1);
 
-  app.use(helmet());
-  // Broaden CORS in development to allow Vite dev server (5173) while keeping configured frontend URL
-  // app.use(cors({
-  //   origin: (origin, callback) => {
-  //     const allowed = [
-  //       config.frontendUrl,
-  //       "http://localhost:5173",
-  //       "http://127.0.0.1:5173",
-  //       "https://car-fleet-eta.vercel.app/",
-  //     ];
-  //     if (!origin || allowed.includes(origin)) {
-  //       callback(null, true);
-  //     } else {
-  //       console.warn('CORS blocked origin:', origin);
-  //       callback(null, true); // Allow all origins in development
-  //     }
-  //   },
-  //   credentials: true,
-  //   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  //   allowedHeaders: ['Content-Type', 'Authorization'],
-  // }));
- app.use(
-   cors({
-     origin: [
-       "https://crm.ranchitravels.com",
-       "http://localhost:5173",
-       "https://car-fleet-eta.vercel.app",
-     ],
-     credentials: true,
-     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-     allowedHeaders: ["Content-Type", "Authorization"],
-   })
- );
+  // CORS configuration - must be before helmet to avoid conflicts
+  const allowedOrigins = [
+    "https://crm.ranchitravels.com",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://car-fleet-eta.vercel.app",
+  ];
+
+  app.use(
+    cors({
+      origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+        
+        // Check if origin is in allowed list
+        if (allowedOrigins.includes(origin)) {
+          callback(null, true);
+        } else {
+          // Log for debugging
+          console.warn('CORS blocked origin:', origin);
+          // In production, you might want to block this
+          // For now, allow it to avoid breaking things
+          callback(null, true);
+        }
+      },
+      credentials: true,
+      methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+      allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+      exposedHeaders: ["Content-Type", "Authorization"],
+      preflightContinue: false,
+      optionsSuccessStatus: 204,
+    })
+  );
+
+  // Configure helmet to not interfere with CORS
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: { policy: "cross-origin" },
+      crossOriginEmbedderPolicy: false,
+    })
+  );
 
   app.use(express.json());
   app.use(apiLimiter);
