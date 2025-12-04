@@ -7,7 +7,7 @@ import { Icon } from '../../components/ui/Icon';
 import { financeAPI } from '../../services/api';
 import { DriverFinancePayment } from '../../types';
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const BASE_URL = import.meta.env.FRONTEND_URL || 'http://localhost:3000/api';
 
 export const DriverProfile: React.FC = () => {
   const { id } = useParams<{id: string}>();

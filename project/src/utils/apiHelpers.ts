@@ -6,7 +6,7 @@
 //     return filename;
 //   }
 //   // Otherwise, construct the URL from the API base URL
-//   const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+//   const apiBaseUrl = import.meta.env.FRONTEND_URL || 'http://localhost:3000/api';
 //   const baseUrl = apiBaseUrl.replace('/api', ''); // Remove /api to get base URL
 //   return `${baseUrl}/uploads/${filename}`;
 // };
@@ -22,7 +22,7 @@ export const getUploadUrl = (
   }
 
   const apiBaseUrl =
-    import.meta.env.VITE_API_URL || "http://localhost:3000/api";
+    import.meta.env.FRONTEND_URL || "http://localhost:3000/api";
 
   // Remove trailing /api safely
   const baseUrl = apiBaseUrl.endsWith("/api")
