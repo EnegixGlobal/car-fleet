@@ -7,7 +7,7 @@ import { DataTable } from '../../components/common/DataTable';
 import { Icon } from '../../components/ui/Icon';
 import { Modal } from "../../components/ui/Modal";
 import { useApp } from '../../context/AppContext';
-import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { format, startOfMonth, endOfMonth, startOfDay, endOfDay, isWithinInterval, parseISO } from 'date-fns';
 
 import type {
   DriverFinancePayment,
@@ -75,11 +75,25 @@ export const BookingReport: React.FC = () => {
   };
 
   const generateRows = async () => {
-    const start = new Date(from);
-    const end = new Date(to);
+    if (!from || !to) {
+      setRows([]);
+      return;
+    }
+    
+    // Normalize dates to start/end of day for proper comparison
+    const start = startOfDay(parseISO(from));
+    const end = endOfDay(parseISO(to));
+    
     const filtered = bookings.filter((b) => {
-      const dt = new Date(b.startDate);
-      if (dt < start || dt > end) return false;
+      if (!b.startDate) return false;
+      
+      // Parse booking startDate and normalize to start of day
+      const bookingDate = startOfDay(parseISO(b.startDate));
+      
+      // Check if booking date is within the range
+      const inRange = isWithinInterval(bookingDate, { start, end });
+      if (!inRange) return false;
+      
       if (driverId && b.driverId !== driverId) return false;
       if (vehicleId && b.vehicleId !== vehicleId) return false;
       if (status && b.status !== status) return false;

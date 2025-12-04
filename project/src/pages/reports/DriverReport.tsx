@@ -8,7 +8,7 @@ import { DataTable } from "../../components/common/DataTable";
 import { Icon } from "../../components/ui/Icon";
 import { Modal } from "../../components/ui/Modal";
 import { Badge } from "../../components/ui/Badge";
-import { format, startOfMonth, endOfMonth } from "date-fns";
+import { format, startOfMonth, endOfMonth, startOfDay, endOfDay, isWithinInterval, parseISO } from "date-fns";
 import type { Driver, Vehicle, DriverFinancePayment } from "../../types";
 import { financeAPI, bookingAPI } from "../../services/api";
 
@@ -75,6 +75,10 @@ export const DriverReport: React.FC = () => {
   const [driverPayments, setDriverPayments] = React.useState<
     DriverFinancePayment[]
   >([]);
+  // Store all driver payments by driverId for accurate calculations
+  const [allDriverPaymentsMap, setAllDriverPaymentsMap] = React.useState<
+    Map<string, DriverFinancePayment[]>
+  >(new Map());
   const [loadingDriverPayments, setLoadingDriverPayments] =
     React.useState(false);
   const [generatingReport, setGeneratingReport] = React.useState(false);
@@ -90,12 +94,22 @@ export const DriverReport: React.FC = () => {
 
   // Derived data for Trip Payment section
   const filteredBookings = React.useMemo(() => {
-    const start = new Date(from);
-    const end = new Date(to);
+    if (!from || !to) return [];
+    
+    // Normalize dates to start/end of day for proper comparison
+    const start = startOfDay(parseISO(from));
+    const end = endOfDay(parseISO(to));
+    
     return bookings.filter((b) => {
-      const dt = new Date(b.startDate);
-      const inRange = dt >= start && dt <= end;
-      const matchesDriver = driverId ? b.driverId === driverId : false;
+      if (!b.startDate) return false;
+      
+      // Parse booking startDate and normalize to start of day
+      const bookingDate = startOfDay(parseISO(b.startDate));
+      
+      // Check if booking date is within the range
+      const inRange = isWithinInterval(bookingDate, { start, end });
+      const matchesDriver = driverId ? b.driverId === driverId : true;
+      
       return inRange && matchesDriver;
     });
   }, [bookings, driverId, from, to]);
@@ -115,8 +129,13 @@ export const DriverReport: React.FC = () => {
           (sum, p) => sum + (p.amount || 0),
           0
         );
-        const advanceToDriver = advanceReceived + paymentTotal;
-        const paymentsForBooking = (driverPayments || []).filter(
+        // Get payments for this booking from the allDriverPaymentsMap
+        // Use the driver's payments from the map, or fallback to driverPayments if driver is selected
+        const driverPaymentsForBooking = b.driverId && allDriverPaymentsMap.has(b.driverId)
+          ? allDriverPaymentsMap.get(b.driverId) || []
+          : driverPayments || [];
+        
+        const paymentsForBooking = driverPaymentsForBooking.filter(
           (p) => p.bookingId === b.id
         );
 
@@ -126,11 +145,7 @@ export const DriverReport: React.FC = () => {
           paymentsForBooking
         );
 
-       
-        const onDutyPaid = (b.payments || []).reduce(
-          (sum, p) => sum + (p.amount || 0),
-          0
-        );
+        const onDutyPaid = paymentTotal;
 
         const advance = advanceReceived || 0;
         const onduty = onDutyPaid || 0;
@@ -156,7 +171,7 @@ export const DriverReport: React.FC = () => {
           amountPayable: displayAmountPayable,
         };
       }),
-    [filteredBookings, driverPayments]
+    [filteredBookings, driverPayments, allDriverPaymentsMap]
   );
 
   const trips = React.useMemo(
@@ -225,10 +240,19 @@ export const DriverReport: React.FC = () => {
       setSelectedBookingId("");
       setPayAmount(0);
       setSettlementMode("pay");
+      setDriverPayments([]);
+    } else {
+      // If we have payments in the map, use them, otherwise fetch
+      if (allDriverPaymentsMap.has(driverId)) {
+        setDriverPayments(allDriverPaymentsMap.get(driverId) || []);
+      } else {
+        // Fetch driver payments when driverId changes
+        fetchDriverPayments(driverId);
+      }
     }
-  }, [driverId]);
+  }, [driverId, allDriverPaymentsMap]);
 
-  // Function to fetch driver payments
+  // Function to fetch driver payments for a specific driver
   const fetchDriverPayments = async (
     selectedDriverId: string
   ): Promise<DriverFinancePayment[]> => {
@@ -239,9 +263,7 @@ export const DriverReport: React.FC = () => {
 
     try {
       setLoadingDriverPayments(true);
-      // console.log("Fetching driver payments for driver ID:", selectedDriverId);
       const payments = await financeAPI.getDriverPayments(selectedDriverId);
-      // console.log("Fetched driver payments:", payments);
       setDriverPayments(payments);
       return payments;
     } catch (error) {
@@ -252,6 +274,62 @@ export const DriverReport: React.FC = () => {
       setLoadingDriverPayments(false);
     }
   };
+
+  // Function to fetch all driver payments for filtered bookings
+  const fetchAllDriverPayments = React.useCallback(async () => {
+    if (!from || !to) {
+      setAllDriverPaymentsMap(new Map());
+      return;
+    }
+
+    try {
+      setLoadingDriverPayments(true);
+      
+      // Normalize dates to start/end of day for proper comparison
+      const start = startOfDay(parseISO(from));
+      const end = endOfDay(parseISO(to));
+      
+      // Get all bookings in the date range
+      const filtered = bookings.filter((b) => {
+        if (!b.startDate) return false;
+        const bookingDate = startOfDay(parseISO(b.startDate));
+        const inRange = isWithinInterval(bookingDate, { start, end });
+        const matchesDriver = driverId ? b.driverId === driverId : true;
+        return inRange && matchesDriver;
+      });
+
+      // Get unique driver IDs from filtered bookings
+      const uniqueDriverIds = Array.from(
+        new Set(filtered.map((b) => b.driverId).filter(Boolean) as string[])
+      );
+
+      // Fetch payments for all drivers in parallel
+      const paymentsMap = new Map<string, DriverFinancePayment[]>();
+      await Promise.all(
+        uniqueDriverIds.map(async (id) => {
+          try {
+            const payments = await financeAPI.getDriverPayments(id);
+            paymentsMap.set(id, Array.isArray(payments) ? payments : []);
+          } catch (error) {
+            console.error(`Failed to fetch payments for driver ${id}:`, error);
+            paymentsMap.set(id, []);
+          }
+        })
+      );
+
+      setAllDriverPaymentsMap(paymentsMap);
+      
+      // If a specific driver is selected, also update driverPayments state
+      if (driverId && paymentsMap.has(driverId)) {
+        setDriverPayments(paymentsMap.get(driverId) || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch all driver payments:", error);
+      setAllDriverPaymentsMap(new Map());
+    } finally {
+      setLoadingDriverPayments(false);
+    }
+  }, [bookings, from, to, driverId]);
 
   const applyMonthYear = () => {
     if (!year) return; // require at least year for month/year filter
@@ -267,16 +345,33 @@ export const DriverReport: React.FC = () => {
   const generateRows = async () => {
     try {
       setGeneratingReport(true);
-      const start = new Date(from);
-      const end = new Date(to);
-      // Ensure we have latest driver payments before computing rows
-      const paymentsForDriver: DriverFinancePayment[] = driverId
-        ? await fetchDriverPayments(driverId)
-        : driverPayments;
+      
+      if (!from || !to) {
+        setRows([]);
+        return;
+      }
+      
+      // Normalize dates to start/end of day for proper comparison
+      const start = startOfDay(parseISO(from));
+      const end = endOfDay(parseISO(to));
+      
+      // Use payments from the map for accurate calculations
+      // If driver is selected, use their payments from map, otherwise use empty array
+      const paymentsForDriver: DriverFinancePayment[] = driverId && allDriverPaymentsMap.has(driverId)
+        ? allDriverPaymentsMap.get(driverId) || []
+        : driverId
+        ? driverPayments
+        : [];
       const filtered = bookings.filter((b) => {
-        const dt = new Date(b.startDate);
-        const inRange = dt >= start && dt <= end;
+        if (!b.startDate) return false;
+        
+        // Parse booking startDate and normalize to start of day
+        const bookingDate = startOfDay(parseISO(b.startDate));
+        
+        // Check if booking date is within the range
+        const inRange = isWithinInterval(bookingDate, { start, end });
         const matchesDriver = driverId ? b.driverId === driverId : true;
+        
         return inRange && matchesDriver;
       });
       const finalRows: ReportRow[] = filtered.map((b, idx) => {
@@ -308,7 +403,13 @@ export const DriverReport: React.FC = () => {
         //   b.totalAmount - driverExpenses - advanceToDriver
         // );
 
-        const paymentsForBooking = (paymentsForDriver || []).filter(
+        // Get payments for this booking from the allDriverPaymentsMap
+        // Use the driver's payments from the map for accurate calculations
+        const driverPaymentsForRow = b.driverId && allDriverPaymentsMap.has(b.driverId)
+          ? allDriverPaymentsMap.get(b.driverId) || []
+          : paymentsForDriver || [];
+        
+        const paymentsForBooking = driverPaymentsForRow.filter(
           (p) => p.bookingId === b.id
         );
 
@@ -319,7 +420,6 @@ export const DriverReport: React.FC = () => {
         const netDriverSettlement = getNetSettlementAmount(
           paymentsForBooking
         );
-        console.log(netDriverSettlement);
 
         const hasSettlementEntries = paymentsForBooking.some(
           isTripSettlementPayment
@@ -433,14 +533,9 @@ export const DriverReport: React.FC = () => {
       });
       setRows(finalRows);
 
-      // Fetch driver payments when generating report if a driver is selected
-      if (driverId) {
-        // console.log(
-        //   "Generating report - fetching driver payments for:",
-        //   driverId
-        // );
-        await fetchDriverPayments(driverId);
-      } else {
+      // Note: Driver payments are now fetched via fetchAllDriverPayments
+      // So we don't need to fetch them here again to avoid duplicate calls
+      if (!driverId) {
         // Clear driver payments if no driver selected
         setDriverPayments([]);
       }
@@ -449,10 +544,19 @@ export const DriverReport: React.FC = () => {
     }
   };
 
+  // Fetch all driver payments when page loads or filters change
   React.useEffect(() => {
-    generateRows();
+    fetchAllDriverPayments();
+  }, [fetchAllDriverPayments]);
+
+  React.useEffect(() => {
+    // Only generate rows if we have valid dates
+    // Driver payments are fetched separately via fetchAllDriverPayments
+    if (from && to) {
+      generateRows();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bookings, drivers, vehicles]);
+  }, [bookings, drivers, vehicles, from, to, driverId, allDriverPaymentsMap]);
 
   const exportCSV = () => {
     if (rows.length === 0) return;
@@ -606,15 +710,23 @@ export const DriverReport: React.FC = () => {
   };
 
   const assignedVehicles = React.useMemo(() => {
-    if (!driverId) return [] as { vehicle: Vehicle; trips: number }[];
+    if (!driverId || !from || !to) return [] as { vehicle: Vehicle; trips: number }[];
+    
+    // Normalize dates to start/end of day for proper comparison
+    const start = startOfDay(parseISO(from));
+    const end = endOfDay(parseISO(to));
+    
     const map = new Map<string, number>();
     bookings
-      .filter(
-        (b) =>
-          b.driverId === driverId &&
-          new Date(b.startDate) >= new Date(from) &&
-          new Date(b.startDate) <= new Date(to)
-      )
+      .filter((b) => {
+        if (!b.startDate || b.driverId !== driverId) return false;
+        
+        // Parse booking startDate and normalize to start of day
+        const bookingDate = startOfDay(parseISO(b.startDate));
+        
+        // Check if booking date is within the range
+        return isWithinInterval(bookingDate, { start, end });
+      })
       .forEach((b) => {
         if (b.vehicleId) map.set(b.vehicleId, (map.get(b.vehicleId) || 0) + 1);
       });

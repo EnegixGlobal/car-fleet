@@ -7,7 +7,7 @@ import { Select } from "../../components/ui/Select";
 import { DataTable } from "../../components/common/DataTable";
 import { Icon } from "../../components/ui/Icon";
 import { Modal } from "../../components/ui/Modal";
-import { format, startOfMonth, endOfMonth } from "date-fns";
+import { format, startOfMonth, endOfMonth, startOfDay, endOfDay, isWithinInterval, parseISO } from "date-fns";
 import type {
   Driver,
   Vehicle,
@@ -89,12 +89,25 @@ export const CompanyReport: React.FC = () => {
   const generateRows = async (customFrom?: string, customTo?: string) => {
     const startDate = customFrom || from;
     const endDate = customTo || to;
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    
+    if (!startDate || !endDate) {
+      setRows([]);
+      return;
+    }
+    
+    // Normalize dates to start/end of day for proper comparison
+    const start = startOfDay(parseISO(startDate));
+    const end = endOfDay(parseISO(endDate));
+    
     const isIndividualFilter = companyId === INDIVIDUAL_FILTER;
     const filtered = bookings.filter((b) => {
-      const dt = new Date(b.startDate);
-      const inRange = dt >= start && dt <= end;
+      if (!b.startDate) return false;
+      
+      // Parse booking startDate and normalize to start of day
+      const bookingDate = startOfDay(parseISO(b.startDate));
+      
+      // Check if booking date is within the range
+      const inRange = isWithinInterval(bookingDate, { start, end });
       const matchesCompany = companyId
         ? isIndividualFilter
           ? b.bookingSource === "individual"
