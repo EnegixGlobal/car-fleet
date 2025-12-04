@@ -48,7 +48,11 @@ if (cluster.isMaster) {
   // }));
  app.use(
    cors({
-     origin: ["https://crm.ranchitravels.com", "http://localhost:5173"],
+     origin: [
+       "https://crm.ranchitravels.com",
+       "http://localhost:5173",
+       "https://car-fleet-eta.vercel.app",
+     ],
      credentials: true,
      methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
      allowedHeaders: ["Content-Type", "Authorization"],
@@ -62,8 +66,13 @@ if (cluster.isMaster) {
     res.json({ message: "Backend API is running on Vercel!" })
   );
 
-  // Serve uploaded files
-  app.use("/uploads", express.static(config.uploadDir));
+  // Serve uploaded files with CORS headers
+  app.use("/uploads", (req, res, next) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "GET");
+    res.header("Access-Control-Allow-Headers", "Content-Type");
+    next();
+  }, express.static(config.uploadDir));
 
   mongoose.connect(config.mongoURI).then(async () => {
     console.log("Mongo connected");

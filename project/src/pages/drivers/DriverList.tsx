@@ -39,7 +39,22 @@ export const DriverList: React.FC = () => {
       header: 'Name',
       render: (driver: Driver) => (
         <div className="flex items-center">
-          {driver.photo && <img src={driver.photo} alt={driver.name} className="h-8 w-8 rounded-full object-cover mr-2" />}
+          {driver.photo ? (
+            <img 
+              src={driver.photo} 
+              alt={driver.name} 
+              className="h-10 w-10 rounded-full object-cover mr-2 border border-gray-200"
+              crossOrigin="anonymous"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.style.display = 'none';
+              }}
+            />
+          ) : (
+            <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center mr-2">
+              <Icon name="user" className="h-4 w-4 text-gray-400" />
+            </div>
+          )}
           <div>
             <p className="font-medium">{driver.name}</p>
             <p className="text-sm text-gray-500">{driver.phone}</p>

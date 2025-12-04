@@ -92,9 +92,19 @@ export const DriverProfile: React.FC = () => {
               <img
                 src={getFileUrl(driver.photo)}
                 alt={driver.name}
-                className='h-24 w-24 rounded-full object-cover border border-gray-300 shadow'
-                onError={() => {
+                className='h-24 w-24 rounded-full object-cover border border-gray-300 shadow bg-gray-50'
+                crossOrigin="anonymous"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
                   console.error('Failed to load photo:', driver.photo, 'Constructed URL:', getFileUrl(driver.photo));
+                  target.style.display = 'none';
+                  const parent = target.parentElement;
+                  if (parent && !parent.querySelector('.photo-placeholder')) {
+                    const placeholder = document.createElement('div');
+                    placeholder.className = 'photo-placeholder h-24 w-24 rounded-full bg-gray-200 flex items-center justify-center border border-gray-300';
+                    placeholder.innerHTML = '<svg class="h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>';
+                    parent.insertBefore(placeholder, target);
+                  }
                 }}
               />
               <a

@@ -67,7 +67,23 @@ export const VehicleList: React.FC = () => {
       header: 'Photo',
       render: (vehicle: Vehicle) => (
         vehicle.photo ? (
-          <img src={getFileUrl(vehicle.photo)} alt="vehicle" className="h-10 w-16 object-cover rounded border" />
+          <img 
+            src={getFileUrl(vehicle.photo)} 
+            alt="vehicle" 
+            className="h-10 w-16 object-cover rounded border bg-gray-50"
+            crossOrigin="anonymous"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.style.display = 'none';
+              const parent = target.parentElement;
+              if (parent) {
+                const placeholder = document.createElement('div');
+                placeholder.className = 'h-10 w-16 flex items-center justify-center rounded border bg-gray-50 text-gray-400';
+                placeholder.innerHTML = '<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg>';
+                parent.appendChild(placeholder);
+              }
+            }}
+          />
         ) : (
           <div className="h-10 w-16 flex items-center justify-center rounded border bg-gray-50 text-gray-400">
             <Icon name="car" className="h-4 w-4" />

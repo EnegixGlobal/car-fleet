@@ -73,7 +73,26 @@ export const VehicleDetails: React.FC = () => {
           {vehicle.photo && (
             <div className="md:col-span-2">
               <p className="font-medium mb-2">Vehicle Image</p>
-              <img src={vehicle.photo} alt="Vehicle" className="max-h-56 rounded border" />
+              <img
+  src={vehicle.photo}
+  alt="Vehicle"
+  className="h-20 w-30 rounded border object-cover bg-gray-50"
+  crossOrigin="anonymous"
+  onError={(e) => {
+    const target = e.target as HTMLImageElement;
+    target.style.display = 'none';
+    const parent = target.parentElement;
+    if (parent && !parent.querySelector('.error-message')) {
+      const errorDiv = document.createElement('div');
+      errorDiv.className =
+        'error-message flex items-center justify-center h-20 w-30 rounded bg-gray-100 border';
+      errorDiv.innerHTML =
+        '<p class="text-gray-500 text-[10px] text-center">No Image</p>';
+      parent.appendChild(errorDiv);
+    }
+  }}
+/>
+
             </div>
           )}
           <div>
