@@ -639,7 +639,7 @@ export const BookingDetails: React.FC = () => {
             <CardHeader>
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-medium text-gray-900">Expenses</h3>
-                {hasRole(["admin", "dispatcher", "driver"]) &&
+                {hasRole(["admin", "dispatcher"]) &&
                   booking.status !== "booked" && (
                     <Button
                       size="sm"
@@ -1148,7 +1148,7 @@ export const BookingDetails: React.FC = () => {
                     htmlFor="Dutyslip-toggle"
                     className="text-sm font-medium"
                   >
-                    Dutyslip not submitted.
+                    Dutyslip submitted.
                   </label>
 
                   <label className="relative inline-flex items-center cursor-pointer">

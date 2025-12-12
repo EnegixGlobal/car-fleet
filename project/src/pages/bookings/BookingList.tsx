@@ -108,7 +108,17 @@ export const BookingList: React.FC = () => {
     {
       key: 'id' as keyof Booking,
       header: 'ID',
-      render: (booking: Booking) => `#${booking.id.slice(-6)}`
+      render: (booking: Booking) => (
+        <div className="flex items-center gap-1">
+          {booking.dutySlipSubmitted && (
+            <Icon name="success" className="h-4 w-4 text-green-600" />
+          )}
+          {booking.dutySlipSubmittedToCompany && (
+            <Icon name="success" className="h-4 w-4 text-yellow-600" />
+          )}
+          <span>#{booking.id.slice(-6)}</span>
+        </div>
+      )
     },
     {
       key: "customerName" as keyof Booking,
