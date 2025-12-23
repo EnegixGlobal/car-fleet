@@ -1,4 +1,4 @@
-import { format, parseISO } from 'date-fns';
+import { parseISO } from 'date-fns';
 
 /**
  * Convert a UTC date string to IST Date object
@@ -20,52 +20,133 @@ const toISTDate = (dateString: string | Date | undefined | null): Date | null =>
 
 /**
  * Format date in IST timezone
+ * Uses UTC methods to format after IST conversion to avoid browser timezone issues
  */
 export const formatDate = (dateString: string | undefined | null): string => {
   if (!dateString) return '—';
   const istDate = toISTDate(dateString);
   if (!istDate) return '—';
-  return format(istDate, 'MMM d, yyyy');
+  
+  const year = istDate.getUTCFullYear();
+  const month = istDate.getUTCMonth();
+  const day = istDate.getUTCDate();
+  
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  
+  return `${monthNames[month]} ${day}, ${year}`;
 };
 
 /**
  * Format date and time in IST timezone
+ * Uses UTC methods to format after IST conversion to avoid browser timezone issues
  */
 export const formatDateTime = (dateString: string | undefined | null): string => {
   if (!dateString) return '—';
   const istDate = toISTDate(dateString);
   if (!istDate) return '—';
-  return format(istDate, 'MMM d, yyyy h:mm a');
+  
+  const year = istDate.getUTCFullYear();
+  const month = istDate.getUTCMonth();
+  const day = istDate.getUTCDate();
+  const hours = istDate.getUTCHours();
+  const minutes = istDate.getUTCMinutes();
+  
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = hours % 12 || 12;
+  const displayMinutes = minutes.toString().padStart(2, '0');
+  
+  return `${monthNames[month]} ${day}, ${year} ${displayHours}:${displayMinutes} ${ampm}`;
 };
 
 /**
  * Format time in IST timezone
+ * Uses UTC methods to format after IST conversion to avoid browser timezone issues
  */
 export const formatTime = (dateString: string | undefined | null): string => {
   if (!dateString) return '—';
   const istDate = toISTDate(dateString);
   if (!istDate) return '—';
-  return format(istDate, 'h:mm a');
+  
+  const hours = istDate.getUTCHours();
+  const minutes = istDate.getUTCMinutes();
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = hours % 12 || 12;
+  const displayMinutes = minutes.toString().padStart(2, '0');
+  
+  return `${displayHours}:${displayMinutes} ${ampm}`;
 };
 
 /**
  * Format date with full format (e.g., "January 1, 2025")
+ * Uses UTC methods to format after IST conversion to avoid browser timezone issues
  */
 export const formatDateFull = (dateString: string | undefined | null): string => {
   if (!dateString) return '—';
   const istDate = toISTDate(dateString);
   if (!istDate) return '—';
-  return format(istDate, 'PPP');
+  
+  const year = istDate.getUTCFullYear();
+  const month = istDate.getUTCMonth();
+  const day = istDate.getUTCDate();
+  
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  
+  const getOrdinalSuffix = (day: number): string => {
+    if (day > 3 && day < 21) return 'th';
+    switch (day % 10) {
+      case 1: return 'st';
+      case 2: return 'nd';
+      case 3: return 'rd';
+      default: return 'th';
+    }
+  };
+  
+  return `${monthNames[month]} ${day}${getOrdinalSuffix(day)}, ${year}`;
 };
 
 /**
  * Format date and time with full format (e.g., "January 1, 2025 at 5:00 AM")
+ * Uses UTC methods to format after IST conversion to avoid browser timezone issues
  */
 export const formatDateTimeFull = (dateString: string | undefined | null): string => {
   if (!dateString) return '—';
   const istDate = toISTDate(dateString);
   if (!istDate) return '—';
-  return format(istDate, 'PPP p');
+  
+  // Use UTC methods to format since we've already adjusted for IST
+  const year = istDate.getUTCFullYear();
+  const month = istDate.getUTCMonth();
+  const day = istDate.getUTCDate();
+  const hours = istDate.getUTCHours();
+  const minutes = istDate.getUTCMinutes();
+  
+  // Format month name
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  
+  // Format day with ordinal suffix
+  const getOrdinalSuffix = (day: number): string => {
+    if (day > 3 && day < 21) return 'th';
+    switch (day % 10) {
+      case 1: return 'st';
+      case 2: return 'nd';
+      case 3: return 'rd';
+      default: return 'th';
+    }
+  };
+  
+  // Format time
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = hours % 12 || 12;
+  const displayMinutes = minutes.toString().padStart(2, '0');
+  
+  return `${monthNames[month]} ${day}${getOrdinalSuffix(day)}, ${year} at ${displayHours}:${displayMinutes} ${ampm}`;
 };
 
 /**
