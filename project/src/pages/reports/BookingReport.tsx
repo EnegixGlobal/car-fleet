@@ -8,6 +8,7 @@ import { Icon } from '../../components/ui/Icon';
 import { Modal } from "../../components/ui/Modal";
 import { useApp } from '../../context/AppContext';
 import { format, startOfMonth, endOfMonth, startOfDay, endOfDay, isWithinInterval, parseISO } from 'date-fns';
+import { formatDateLocale, formatDateTimeLocale } from '../../utils/dateHelpers';
 
 import type {
   DriverFinancePayment,
@@ -377,7 +378,7 @@ export const BookingReport: React.FC = () => {
           {
             key: "bookingDate",
             header: "Booking Date",
-            render: (r) => new Date(r.bookingDate).toLocaleDateString(),
+            render: (r) => formatDateLocale(r.bookingDate),
           },
           { key: "customerName", header: "Customer Name" },
           { key: "route", header: "From / To" },
@@ -407,7 +408,7 @@ export const BookingReport: React.FC = () => {
           {
             key: "createdAt",
             header: "Created Date",
-            render: (r) => new Date(r.createdAt).toLocaleString(),
+            render: (r) => formatDateTimeLocale(r.createdAt),
           },
         ]}
         defaultSortKey={"bookingDate"}
@@ -432,13 +433,13 @@ export const BookingReport: React.FC = () => {
               <div>
                 <p className="text-xs text-gray-500">Booking Date</p>
                 <p className="font-semibold text-gray-900">
-                  {new Date(viewingRow.bookingDate).toLocaleDateString()}
+                  {formatDateLocale(viewingRow.bookingDate)}
                 </p>
               </div>
               <div>
                 <p className="text-xs text-gray-500">Created Date</p>
                 <p className="font-semibold text-gray-900">
-                  {new Date(viewingRow.createdAt).toLocaleString()}
+                  {formatDateTimeLocale(viewingRow.createdAt)}
                 </p>
               </div>
               <div>

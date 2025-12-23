@@ -28,7 +28,7 @@ const bookingSchema = z.object({
   vehicleCategoryId: z.string().optional(),
   vehicleId: z.string().optional(),
   driverId: z.string().optional(),
-  tariffRate: z.number().min(0),
+  tariffRate: z.coerce.number().min(0, 'Tariff rate must be a positive number'),
   totalAmount: z.number().min(0),
   advanceReceived: z.number().min(0),
   advanceReason: z.string().optional(),
@@ -80,7 +80,7 @@ export const EditBooking: React.FC = () => {
   reset,
     formState: { errors, isSubmitting },
   } = useForm<BookingFormData>({
-    resolver: zodResolver(bookingSchema),
+    resolver: zodResolver(bookingSchema) as any,
     // Start with blank defaults; real booking loaded via effect & reset
     defaultValues: {
       customerName: '',
@@ -156,7 +156,7 @@ export const EditBooking: React.FC = () => {
       vehicleCategoryId: booking.vehicleCategoryId,
       vehicleId: booking.vehicleId,
       driverId: booking.driverId,
-      tariffRate: booking.tariffRate,
+      tariffRate: booking.tariffRate || 0,
       totalAmount: booking.totalAmount,
       advanceReceived: booking.advanceReceived,
       advanceReason: booking.advanceReason || '',
@@ -215,6 +215,7 @@ export const EditBooking: React.FC = () => {
       ...data,
       ...normalizedDates,
       companyId: normalizedCompanyId,
+      tariffRate: data.tariffRate,
       balance: data.totalAmount - data.advanceReceived,
       vehicleCategoryId: data.vehicleCategoryId || undefined,
       driverId: data.driverId || undefined,
@@ -299,7 +300,7 @@ export const EditBooking: React.FC = () => {
           <h2 className="text-xl font-semibold text-gray-900">Booking Details</h2>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={handleSubmit(onSubmit as any)} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Input {...register('customerName')} label="Customer Name" error={errors.customerName?.message} />
               <Input {...register('customerPhone')} label="Customer Phone" error={errors.customerPhone?.message} />
@@ -342,7 +343,7 @@ export const EditBooking: React.FC = () => {
               <Select {...register('driverId')} label="Driver" placeholder="Select driver" options={driverOptions} />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Input type="number" step="0.01" {...register('tariffRate', { valueAsNumber: true })} label="Tariff Rate" />
+              <Input type="text" {...register('tariffRate')} label="Tariff Rate" />
               <Input type="number" step="0.01" {...register('totalAmount', { valueAsNumber: true })} label="Total Amount" />
               <Input type="number" step="0.01" {...register('advanceReceived', { valueAsNumber: true })} label="Advance to Driver" />
             </div>

@@ -1,6 +1,9 @@
 // src/services/booking.service.ts
 import { Booking, Payment } from '../models';
 import { AuthRequest, IBooking } from '../types';
+import fs from 'fs';
+import path from 'path';
+import { config } from '../../config';
 
 export const createBooking = async (data: Omit<IBooking, '_id' | 'createdAt' | 'statusHistory' | 'expenses' | 'dutySlips' | 'billed' | 'balance'>) => {
   const booking = new Booking({
@@ -20,15 +23,69 @@ export const createBooking = async (data: Omit<IBooking, '_id' | 'createdAt' | '
   return booking.populate('companyId driverId vehicleId vehicleCategoryId customerId');
 };
 
+/**
+ * Convert a date string (YYYY-MM-DD) to UTC Date representing start of day in IST
+ * IST is UTC+5:30, so start of day in IST (00:00:00 IST) = 18:30:00 previous day UTC
+ * Example: 2025-12-24 00:00:00 IST = 2025-12-23 18:30:00 UTC
+ */
+const getISTStartOfDayUTC = (dateString: string): Date => {
+  // Parse the date string (YYYY-MM-DD)
+  const [year, month, day] = dateString.split('-').map(Number);
+  // Create date at start of day in IST (00:00:00 IST)
+  // IST is UTC+5:30, so we need to subtract 5 hours 30 minutes from UTC
+  // Create UTC date for midnight IST, which is 18:30 previous day UTC
+  const utcDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+  // Subtract 5.5 hours (5 hours 30 minutes) to convert IST to UTC
+  utcDate.setTime(utcDate.getTime() - (5.5 * 60 * 60 * 1000));
+  return utcDate;
+};
+
+/**
+ * Convert a date string (YYYY-MM-DD) to UTC Date representing end of day in IST
+ * IST is UTC+5:30, so end of day in IST (23:59:59 IST) = 18:29:59 same day UTC
+ * Example: 2025-12-24 23:59:59 IST = 2025-12-24 18:29:59 UTC
+ */
+const getISTEndOfDayUTC = (dateString: string): Date => {
+  // Parse the date string (YYYY-MM-DD)
+  const [year, month, day] = dateString.split('-').map(Number);
+  // Create date at end of day in IST (23:59:59 IST)
+  // IST is UTC+5:30, so we need to subtract 5 hours 30 minutes from UTC
+  const utcDate = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999));
+  // Subtract 5.5 hours (5 hours 30 minutes) to convert IST to UTC
+  utcDate.setTime(utcDate.getTime() - (5.5 * 60 * 60 * 1000));
+  return utcDate;
+};
+
 export const getBookings = async (page: number, limit: number, filters: any, user?: AuthRequest['user']) => {
   const query: Record<string, any> = {};
   if (filters.status) query['status'] = filters.status;
   if (filters.source) query['bookingSource'] = filters.source;
-  if (filters.startDate) query['startDate'] = { $gte: new Date(filters.startDate) };
-  if (filters.endDate) {
-    const endCriteria = query['endDate'] || {};
-    endCriteria.$lte = new Date(filters.endDate);
-    query['endDate'] = endCriteria;
+  if (filters.startDate || filters.endDate) {
+    const startDateQuery: Record<string, any> = {};
+    
+    if (filters.startDate) {
+      // Convert IST date filter to UTC for proper comparison
+      // If it's a date-only string (YYYY-MM-DD), treat it as IST date
+      if (/^\d{4}-\d{2}-\d{2}$/.test(filters.startDate)) {
+        startDateQuery.$gte = getISTStartOfDayUTC(filters.startDate);
+      } else {
+        startDateQuery.$gte = new Date(filters.startDate);
+      }
+    }
+    
+    if (filters.endDate) {
+      // Convert IST date filter to UTC for proper comparison
+      // Filter by startDate (we're filtering bookings by their start date)
+      if (/^\d{4}-\d{2}-\d{2}$/.test(filters.endDate)) {
+        startDateQuery.$lte = getISTEndOfDayUTC(filters.endDate);
+      } else {
+        startDateQuery.$lte = new Date(filters.endDate);
+      }
+    }
+    
+    if (Object.keys(startDateQuery).length > 0) {
+      query['startDate'] = startDateQuery;
+    }
   }
   if (filters.driverId && user?.role !== 'driver') query['driverId'] = filters.driverId;
 
@@ -141,15 +198,33 @@ export const updateStatus = async (bookingId: string, status: IBooking['status']
 
 export const uploadDutySlips = async (bookingId: string, files: Express.Multer.File[], uploadedBy: string) => {
   const dutySlips = files.map(file => ({
-    path: file.path,
+    path: `DutySlips/${file.filename}`, // Store path relative to uploads directory: DutySlips/filename
     uploadedBy,
     uploadedAt: new Date(),
-    description: `Duty slip uploaded at ${new Date().toISOString()}`,
+    description: file.originalname || `Duty slip uploaded at ${new Date().toISOString()}`,
   }));
   return Booking.findByIdAndUpdate(bookingId, { $push: { dutySlips: { $each: dutySlips } } }, { new: true }).populate('companyId driverId vehicleId vehicleCategoryId customerId');
 };
 
 export const removeDutySlip = async (bookingId: string, dutySlipPath: string) => {
+  // Delete the physical file from filesystem
+  try {
+    // Construct full file path (dutySlipPath is like "DutySlips/filename.png")
+    const fullPath = path.join(config.uploadDir, dutySlipPath);
+    
+    // Check if file exists and delete it
+    if (fs.existsSync(fullPath)) {
+      fs.unlinkSync(fullPath);
+      console.log(`Deleted file: ${fullPath}`);
+    } else {
+      console.warn(`File not found: ${fullPath}`);
+    }
+  } catch (error: any) {
+    console.error(`Error deleting file ${dutySlipPath}:`, error.message);
+    // Continue with database removal even if file deletion fails
+  }
+  
+  // Remove from database
   return Booking.findByIdAndUpdate(bookingId, { $pull: { dutySlips: { path: dutySlipPath } } }, { new: true }).populate('companyId driverId vehicleId vehicleCategoryId customerId');
 };
 

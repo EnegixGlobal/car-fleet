@@ -6,8 +6,9 @@ import { DataTable } from '../../components/common/DataTable';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Icon } from '../../components/ui/Icon';
-import { format, parseISO, isBefore, addDays } from 'date-fns';
+import { isBefore, addDays, parseISO } from 'date-fns';
 import { Driver } from '../../types';
+import { formatDate } from '../../utils/dateHelpers';
 
 export const DriverList: React.FC = () => {
   const navigate = useNavigate();
@@ -89,14 +90,14 @@ export const DriverList: React.FC = () => {
     {
       key: 'dateOfJoining',
       header: 'Joined',
-      render: (driver: Driver) => driver.dateOfJoining ? format(parseISO(driver.dateOfJoining), 'MMM d, yyyy') : '—'
+      render: (driver: Driver) => driver.dateOfJoining ? formatDate(driver.dateOfJoining) : '—'
     },
     {
       key: 'licenseExpiry' as keyof Driver,
       header: 'License Expiry',
       render: (driver: Driver) => (
         <div>
-          <p className="text-sm">{format(parseISO(driver.licenseExpiry), 'MMM d, yyyy')}</p>
+          <p className="text-sm">{formatDate(driver.licenseExpiry)}</p>
           {getExpiryStatus(driver) === 'expiring' && (
             <p className="text-xs text-orange-600">Expiring Soon</p>
           )}

@@ -5,6 +5,8 @@ import { auth } from '../middleware';
 
 const router = Router({ mergeParams: true });
 
+// Get servicing notifications (EMI, Insurance, Pollution) - must be before parameterized routes
+router.get('/servicing/notifications', auth(['admin','dispatcher','accountant']), controller.getNotifications);
 // Fetch full servicing doc for a vehicle
 router.get('/:vehicleId/servicing', auth(['admin','dispatcher']), controller.getServicing);
 // Upsert full servicing data (replace arrays provided)

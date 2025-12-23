@@ -10,6 +10,7 @@ import { Modal } from "../../components/ui/Modal";
 import { Badge } from "../../components/ui/Badge";
 import { format, startOfMonth, endOfMonth, startOfDay, endOfDay, isWithinInterval, parseISO } from "date-fns";
 import type { Driver, Vehicle, DriverFinancePayment } from "../../types";
+import { formatDateLocale, formatDateTimeLocale } from "../../utils/dateHelpers";
 import { financeAPI, bookingAPI } from "../../services/api";
 
 interface ReportRow {
@@ -189,7 +190,7 @@ export const DriverReport: React.FC = () => {
         .filter(({ booking }) => !booking.finalPaid || booking.finalPaid === 0) // exclude if finalPaid exists and > 0
         .map(({ booking, amountPayable }) => ({
           value: booking.id,
-          label: `${new Date(booking.startDate).toLocaleDateString()} - ${booking.pickupLocation
+          label: `${formatDateLocale(booking.startDate)} - ${booking.pickupLocation
             } to ${booking.dropLocation} - ${amountPayable < 0 ? "Refund" : "Pay"
             } ₹${formatMoney(Math.abs(amountPayable))}`,
         })),
@@ -1010,7 +1011,7 @@ export const DriverReport: React.FC = () => {
                           )}
                       </div>
                       <div className="text-right text-xs text-gray-500">
-                        <p>{new Date(payment.date).toLocaleDateString()}</p>
+                        <p>{formatDateLocale(payment.date)}</p>
                         {payment.settled && (
                           <span className="text-green-600 font-medium">
                             Settled
@@ -1122,7 +1123,7 @@ export const DriverReport: React.FC = () => {
           {
             key: "bookingDate",
             header: "Booking Date",
-            render: (r) => new Date(r.bookingDate).toLocaleDateString(),
+            render: (r) => formatDateLocale(r.bookingDate),
           },
           { key: "customerName", header: "Customer Name" },
           { key: "route", header: "From / To" },
@@ -1198,7 +1199,7 @@ export const DriverReport: React.FC = () => {
           {
             key: "createdDate",
             header: "Created Date",
-            render: (r) => new Date(r.createdDate).toLocaleString(),
+            render: (r) => formatDateTimeLocale(r.createdDate),
           },
           {
             key: "action",
@@ -1246,13 +1247,13 @@ export const DriverReport: React.FC = () => {
               <div>
                 <p className="text-xs text-gray-500">Booking Date</p>
                 <p className="font-semibold text-gray-900">
-                  {new Date(viewingRow.bookingDate).toLocaleDateString()}
+                  {formatDateLocale(viewingRow.bookingDate)}
                 </p>
               </div>
               <div>
                 <p className="text-xs text-gray-500">Created Date</p>
                 <p className="font-semibold text-gray-900">
-                  {new Date(viewingRow.createdDate).toLocaleString()}
+                  {formatDateTimeLocale(viewingRow.createdDate)}
                 </p>
               </div>
               <div>

@@ -25,3 +25,12 @@ export const appendSection = async (req: Request, res: Response) => {
   const doc = await service.addServicingEntries(vehicleId, section as any, entries);
   res.json(doc);
 };
+
+export const getNotifications = async (req: Request, res: Response) => {
+  try {
+    const notifications = await service.getServicingNotifications();
+    res.json(notifications);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to fetch notifications' });
+  }
+};

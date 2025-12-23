@@ -482,27 +482,37 @@ export const vehicleAPI = {
       insuranceExpiry:
         typeof raw.insuranceExpiry === "string"
           ? raw.insuranceExpiry
-          : new Date(raw.insuranceExpiry).toISOString(),
+          : typeof raw.insuranceExpiry === "object" && raw.insuranceExpiry && "$date" in raw.insuranceExpiry
+          ? (raw.insuranceExpiry as { $date: string }).$date
+          : new Date(raw.insuranceExpiry as any).toISOString(),
       fitnessExpiry:
         typeof raw.fitnessExpiry === "string"
           ? raw.fitnessExpiry
-          : new Date(raw.fitnessExpiry).toISOString(),
+          : typeof raw.fitnessExpiry === "object" && raw.fitnessExpiry && "$date" in raw.fitnessExpiry
+          ? (raw.fitnessExpiry as { $date: string }).$date
+          : new Date(raw.fitnessExpiry as any).toISOString(),
       permitExpiry:
         typeof raw.permitExpiry === "string"
           ? raw.permitExpiry
-          : new Date(raw.permitExpiry).toISOString(),
+          : typeof raw.permitExpiry === "object" && raw.permitExpiry && "$date" in raw.permitExpiry
+          ? (raw.permitExpiry as { $date: string }).$date
+          : new Date(raw.permitExpiry as any).toISOString(),
       pollutionExpiry:
         typeof raw.pollutionExpiry === "string"
           ? raw.pollutionExpiry
-          : new Date(raw.pollutionExpiry).toISOString(),
-      photo: raw.photo ? (raw.photo.startsWith('http') ? raw.photo : `${(import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace('/api', '')}/uploads/${raw.photo}`) : undefined,
-      document: raw.document ? (raw.document.startsWith('http') ? raw.document : `${(import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace('/api', '')}/uploads/${raw.document}`) : undefined,
+          : typeof raw.pollutionExpiry === "object" && raw.pollutionExpiry && "$date" in raw.pollutionExpiry
+          ? (raw.pollutionExpiry as { $date: string }).$date
+          : new Date(raw.pollutionExpiry as any).toISOString(),
+      photo: raw.photo ? (raw.photo.startsWith('http') ? raw.photo : `${(import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace('/api', '')}/uploads/Vehicle/${raw.photo}`) : undefined,
+      document: raw.document ? (raw.document.startsWith('http') ? raw.document : `${(import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace('/api', '')}/uploads/Vehicle/${raw.document}`) : undefined,
       status: raw.status,
       mileageTrips: raw.mileageTrips,
       mileageKm: raw.mileageKm,
       createdAt:
         typeof raw.createdAt === "string"
           ? raw.createdAt
+          : typeof raw.createdAt === "object" && raw.createdAt && "$date" in raw.createdAt
+          ? (raw.createdAt as { $date: string }).$date
           : new Date(raw.createdAt || Date.now()).toISOString(),
     };
   },
@@ -649,25 +659,33 @@ export const driverAPI = {
       licenseExpiry:
         typeof raw.licenseExpiry === "string"
           ? raw.licenseExpiry
-          : new Date(raw.licenseExpiry).toISOString(),
+          : typeof raw.licenseExpiry === "object" && raw.licenseExpiry && "$date" in raw.licenseExpiry
+          ? (raw.licenseExpiry as { $date: string }).$date
+          : new Date(raw.licenseExpiry as any).toISOString(),
       policeVerificationExpiry:
         typeof raw.policeVerificationExpiry === "string"
           ? raw.policeVerificationExpiry
-          : new Date(raw.policeVerificationExpiry).toISOString(),
+          : typeof raw.policeVerificationExpiry === "object" && raw.policeVerificationExpiry && "$date" in raw.policeVerificationExpiry
+          ? (raw.policeVerificationExpiry as { $date: string }).$date
+          : new Date(raw.policeVerificationExpiry as any).toISOString(),
       paymentMode: raw.paymentMode,
       salary: raw.salary,
       dateOfJoining: raw.dateOfJoining
         ? typeof raw.dateOfJoining === "string"
           ? raw.dateOfJoining
-          : new Date(raw.dateOfJoining).toISOString()
+          : typeof raw.dateOfJoining === "object" && raw.dateOfJoining && "$date" in raw.dateOfJoining
+          ? (raw.dateOfJoining as { $date: string }).$date
+          : new Date(raw.dateOfJoining as any).toISOString()
         : typeof raw.createdAt === "string"
         ? raw.createdAt
+        : typeof raw.createdAt === "object" && raw.createdAt && "$date" in raw.createdAt
+        ? (raw.createdAt as { $date: string }).$date
         : new Date(raw.createdAt || Date.now()).toISOString(),
       referenceNote: raw.referenceNote,
-      document: raw.document ? (raw.document.startsWith('http') ? raw.document : `${(import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace('/api', '')}/uploads/${raw.document}`) : undefined,
-      photo: raw.photo ? (raw.photo.startsWith('http') ? raw.photo : `${(import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace('/api', '')}/uploads/${raw.photo}`) : undefined,
-      licenseDocument: raw.licenseDocument ? (typeof raw.licenseDocument === 'string' && raw.licenseDocument.startsWith('http') ? raw.licenseDocument : typeof raw.licenseDocument === 'string' ? `${(import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace('/api', '')}/uploads/${raw.licenseDocument}` : raw.licenseDocument) : undefined,
-      policeVerificationDocument: raw.policeVerificationDocument ? (typeof raw.policeVerificationDocument === 'string' && raw.policeVerificationDocument.startsWith('http') ? raw.policeVerificationDocument : typeof raw.policeVerificationDocument === 'string' ? `${(import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace('/api', '')}/uploads/${raw.policeVerificationDocument}` : raw.policeVerificationDocument) : undefined,
+      document: raw.document ? (raw.document.startsWith('http') ? raw.document : `${(import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace('/api', '')}/uploads/Driver/${raw.document}`) : undefined,
+      photo: raw.photo ? (raw.photo.startsWith('http') ? raw.photo : `${(import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace('/api', '')}/uploads/Driver/${raw.photo}`) : undefined,
+      licenseDocument: raw.licenseDocument ? (typeof raw.licenseDocument === 'string' && raw.licenseDocument.startsWith('http') ? raw.licenseDocument : typeof raw.licenseDocument === 'string' ? `${(import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace('/api', '')}/uploads/Driver/${raw.licenseDocument}` : raw.licenseDocument) : undefined,
+      policeVerificationDocument: raw.policeVerificationDocument ? (typeof raw.policeVerificationDocument === 'string' && raw.policeVerificationDocument.startsWith('http') ? raw.policeVerificationDocument : typeof raw.policeVerificationDocument === 'string' ? `${(import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace('/api', '')}/uploads/Driver/${raw.policeVerificationDocument}` : raw.policeVerificationDocument) : undefined,
       advances: (raw.advances || []).map((a) => ({
         id: a.id || a._id || "",
         amount: a.amount,
@@ -1078,6 +1096,7 @@ export interface BookingDTO {
     paidOn: string;
   }[];
   finalPaid?: number;
+  settled?: boolean;
   billed: boolean;
   dutySlipSubmitted: boolean;
   dutySlipSubmittedToCompany: boolean;
@@ -1222,7 +1241,17 @@ export const bookingAPI = {
             : new Date(s.timestamp).toISOString(),
         changedBy: s.changedBy,
       })),
-      dutySlips: raw.dutySlips,
+      dutySlips: (raw.dutySlips || []).map((ds: RawDutySlip) => ({
+        id: ds.id || ds._id || Math.random().toString(),
+        name: ds.name || ds.description || 'Duty Slip',
+        type: ds.type || (ds.path?.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg'),
+        size: ds.size || 0,
+        data: ds.data || '',
+        uploadedAt: typeof ds.uploadedAt === 'string' ? ds.uploadedAt : new Date(ds.uploadedAt || Date.now()).toISOString(),
+        path: ds.path,
+        description: ds.description,
+        uploadedBy: ds.uploadedBy,
+      })),
       createdAt:
         typeof raw.createdAt === "string"
           ? raw.createdAt
@@ -1477,6 +1506,22 @@ export const bookingAPI = {
     });
     return res.data as Blob;
   },
+  uploadDutySlips: async (bookingId: string, files: File[]): Promise<BookingDTO> => {
+    const formData = new FormData();
+    files.forEach((file) => {
+      formData.append('dutySlips', file);
+    });
+    const res = await api.post(`/bookings/${bookingId}/duty-slips`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return bookingAPI._normalize(res.data as RawFullBooking);
+  },
+  removeDutySlip: async (bookingId: string, path: string): Promise<BookingDTO> => {
+    const res = await api.put(`/bookings/${bookingId}/remove-duty-slip`, { path });
+    return bookingAPI._normalize(res.data as RawFullBooking);
+  },
 };
 
 // Finance API
@@ -1699,6 +1744,56 @@ export interface VehicleServicingDTO {
   }[];
 }
 
+// Normalize servicing dates so backend zod .datetime() validation accepts them
+function normalizeServicingDates<T extends Partial<VehicleServicingDTO>>(obj: T): T {
+  const copy: any = obj ? { ...obj } : {};
+
+  const normalizeDateField = (val: unknown): string | undefined => {
+    if (typeof val !== "string") return val as undefined;
+    // If it's just YYYY-MM-DD, convert to ISO at midnight IST (UTC+05:30)
+    if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+      // Construct date at 00:00 in IST; JS Date will store it in UTC internally
+      const d = new Date(val + "T00:00:00+05:30");
+      if (!Number.isNaN(d.getTime())) return d.toISOString();
+    }
+    return val;
+  };
+
+  const sections: (keyof VehicleServicingDTO)[] = [
+    "oilChanges",
+    "partsReplacements",
+    "tyres",
+    "installments",
+    "insurances",
+    "legalPapers",
+  ];
+
+  sections.forEach((section) => {
+    if (!Array.isArray(copy[section])) return;
+    copy[section] = (copy[section] as any[]).map((item) => {
+      const it: any = { ...item };
+      if ("date" in it) it.date = normalizeDateField(it.date);
+      if ("validFrom" in it) it.validFrom = normalizeDateField(it.validFrom);
+      if ("validTo" in it) it.validTo = normalizeDateField(it.validTo);
+      if ("expiryDate" in it) it.expiryDate = normalizeDateField(it.expiryDate);
+      return it;
+    });
+  });
+
+  return copy as T;
+}
+
+export interface ServicingNotification {
+  type: 'emi' | 'insurance' | 'pollution';
+  status: 'upcoming' | 'expired';
+  vehicleId: string;
+  vehicleNumber?: string;
+  description: string;
+  dueDate: string;
+  amount?: number;
+  itemId: string;
+}
+
 export const vehicleServicingAPI = {
   get: async (vehicleId: string): Promise<VehicleServicingDTO> => {
     const res = await api.get(`/vehicles/${vehicleId}/servicing`);
@@ -1718,7 +1813,8 @@ export const vehicleServicingAPI = {
     vehicleId: string,
     payload: Partial<VehicleServicingDTO>
   ): Promise<VehicleServicingDTO> => {
-    await api.put(`/vehicles/${vehicleId}/servicing`, payload);
+    const body = normalizeServicingDates(payload);
+    await api.put(`/vehicles/${vehicleId}/servicing`, body);
     return vehicleServicingAPI.get(vehicleId);
   },
   appendSection: async <K extends keyof VehicleServicingDTO>(
@@ -1728,6 +1824,10 @@ export const vehicleServicingAPI = {
   ): Promise<VehicleServicingDTO> => {
     await api.post(`/vehicles/${vehicleId}/servicing/${section}`, entries);
     return vehicleServicingAPI.get(vehicleId);
+  },
+  getNotifications: async (): Promise<ServicingNotification[]> => {
+    const res = await api.get('/vehicles/servicing/notifications');
+    return res.data as ServicingNotification[];
   },
 };
 

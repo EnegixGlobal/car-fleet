@@ -96,7 +96,7 @@ export const CreateDriver: React.FC = () => {
         if (filename.startsWith('http://') || filename.startsWith('https://')) return filename;
         const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
         const baseUrl = apiBaseUrl.replace('/api', '');
-        return `${baseUrl}/uploads/${filename}`;
+        return `${baseUrl}/uploads/Driver/${filename}`;
       };
       const normalized = {
         id: created._id || created.id || '',

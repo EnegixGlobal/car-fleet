@@ -5,8 +5,9 @@ import { DataTable } from '../../components/common/DataTable';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Icon } from '../../components/ui/Icon';
-import { format, parseISO, isBefore, addDays } from 'date-fns';
+import { isBefore, addDays, parseISO } from 'date-fns';
 import { Vehicle } from '../../types';
+import { formatDate } from '../../utils/dateHelpers';
 import { vehicleCategoryAPI, VehicleCategoryDTO } from '../../services/api';
 import { useToast } from '../../hooks/useToast';
 
@@ -32,7 +33,7 @@ export const VehicleList: React.FC = () => {
     }
     // Remove /api from BASE_URL if present, then construct the URL
     const baseUrl = BASE_URL.replace('/api', '');
-    return `${baseUrl}/uploads/${filename}`;
+    return `${baseUrl}/uploads/Vehicle/${filename}`;
   };
 
   let filteredVehicles = vehicles;
@@ -160,7 +161,7 @@ export const VehicleList: React.FC = () => {
         const isExpiring = isBefore(parseISO(vehicle.insuranceExpiry), addDays(new Date(), 30));
         return (
           <div>
-            <p className="text-sm">{format(parseISO(vehicle.insuranceExpiry), 'MMM d, yyyy')}</p>
+            <p className="text-sm">{formatDate(vehicle.insuranceExpiry)}</p>
             {isExpiring && (
               <p className="text-xs text-orange-600">Expiring Soon</p>
             )}
@@ -175,7 +176,7 @@ export const VehicleList: React.FC = () => {
         const isExpiring = isBefore(parseISO(vehicle.fitnessExpiry), addDays(new Date(), 30));
         return (
           <div>
-            <p className="text-sm">{format(parseISO(vehicle.fitnessExpiry), 'MMM d, yyyy')}</p>
+            <p className="text-sm">{formatDate(vehicle.fitnessExpiry)}</p>
             {isExpiring && (
               <p className="text-xs text-orange-600">Expiring Soon</p>
             )}

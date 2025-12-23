@@ -7,13 +7,14 @@ import { Select } from "../../components/ui/Select";
 import { DataTable } from "../../components/common/DataTable";
 import { Icon } from "../../components/ui/Icon";
 import { Modal } from "../../components/ui/Modal";
-import { format, startOfMonth, endOfMonth, startOfDay, endOfDay, isWithinInterval, parseISO } from "date-fns";
+import {  format, startOfMonth, endOfMonth, startOfDay, endOfDay, isWithinInterval, parseISO } from "date-fns";
 import type {
   Driver,
   Vehicle,
   Company,
   DriverFinancePayment,
 } from "../../types";
+import { formatDateLocale, formatDateTimeLocale } from "../../utils/dateHelpers";
 import { financeAPI } from "../../services/api";
 
 const isTripSettlementPayment = (payment: DriverFinancePayment) => {
@@ -210,7 +211,7 @@ export const CompanyReport: React.FC = () => {
       [
         r.sNo,
         r.companyName,
-        new Date(r.bookingDate).toLocaleDateString(),
+        formatDateLocale(r.bookingDate),
         r.customerName,
         r.route,
         r.bookingAmount,
@@ -219,7 +220,7 @@ export const CompanyReport: React.FC = () => {
         r.driverExpenses,
         r.driverReceived,
         r.vehicle,
-        new Date(r.createdDate).toLocaleString(),
+        formatDateTimeLocale(r.createdDate),
       ].join(",")
     );
     const csv = [header.join(","), ...lines].join("\n");
@@ -243,9 +244,9 @@ export const CompanyReport: React.FC = () => {
           ${rows
             .map(
               (r) =>
-                `<tr><td>${r.sNo}</td><td>${r.companyName}</td><td>${new Date(
+                `<tr><td>${r.sNo}</td><td>${r.companyName}</td><td>${formatDateLocale(
                   r.bookingDate
-                ).toLocaleDateString()}</td><td>${r.customerName}</td><td>${
+                )}</td><td>${r.customerName}</td><td>${
                   r.route
                 }</td><td>${r.bookingAmount}</td><td>${r.driverName}</td><td>${
                   r.advanceReceived
@@ -253,7 +254,7 @@ export const CompanyReport: React.FC = () => {
                   r.driverReceived
                 }</td><td>${
                   r.vehicle
-                }</td><td>${new Date(r.createdDate).toLocaleString()}</td></tr>`
+                }</td><td>${formatDateTimeLocale(r.createdDate)}</td></tr>`
             )
             .join("")}
         </tbody>
@@ -287,7 +288,7 @@ export const CompanyReport: React.FC = () => {
       [
         r.sNo,
         r.companyName,
-        new Date(r.bookingDate).toLocaleDateString(),
+        formatDateLocale(r.bookingDate),
         r.customerName,
         r.route,
         r.bookingAmount,
@@ -296,7 +297,7 @@ export const CompanyReport: React.FC = () => {
         r.driverExpenses,
         r.driverReceived,
         r.vehicle,
-        new Date(r.createdDate).toLocaleString(),
+        formatDateTimeLocale(r.createdDate),
       ].join("\t")
     );
     await navigator.clipboard.writeText(
@@ -316,17 +317,17 @@ export const CompanyReport: React.FC = () => {
     );
     rows.forEach((r) => {
       w.document.write(
-        `<tr><td>${r.sNo}</td><td>${r.companyName}</td><td>${new Date(
+        `<tr><td>${r.sNo}</td><td>${r.companyName}</td><td>${formatDateLocale(
           r.bookingDate
-        ).toLocaleDateString()}</td><td>${r.customerName}</td><td>${
+        )}</td><td>${r.customerName}</td><td>${
           r.route
         }</td><td>${r.bookingAmount}</td><td>${r.driverName}</td><td>${
           r.advanceReceived
         }</td><td>${r.driverExpenses}</td><td>${r.driverReceived}</td><td>${
           r.vehicle
-        }</td><td>${new Date(
+        }</td><td>${formatDateTimeLocale(
           r.createdDate
-        ).toLocaleString()}</td></tr>`
+        )}</td></tr>`
       );
     });
     w.document.write("</tbody></table></body></html>");
@@ -492,7 +493,7 @@ export const CompanyReport: React.FC = () => {
           {
             key: "bookingDate",
             header: "Booking Date",
-            render: (r) => new Date(r.bookingDate).toLocaleDateString(),
+            render: (r) => formatDateLocale(r.bookingDate),
           },
           { key: "customerName", header: "Customer Name" },
           { key: "route", header: "From / To" },
@@ -521,7 +522,7 @@ export const CompanyReport: React.FC = () => {
           {
             key: "createdDate",
             header: "Created Date",
-            render: (r) => new Date(r.createdDate).toLocaleString(),
+            render: (r) => formatDateTimeLocale(r.createdDate),
           },
         ]}
         defaultSortKey={"bookingDate"}
@@ -552,13 +553,13 @@ export const CompanyReport: React.FC = () => {
               <div>
                 <p className="text-xs text-gray-500">Booking Date</p>
                 <p className="font-semibold text-gray-900">
-                  {new Date(viewingRow.bookingDate).toLocaleDateString()}
+                  {formatDateLocale(viewingRow.bookingDate)}
                 </p>
               </div>
               <div>
                 <p className="text-xs text-gray-500">Created Date</p>
                 <p className="font-semibold text-gray-900">
-                  {new Date(viewingRow.createdDate).toLocaleString()}
+                  {formatDateTimeLocale(viewingRow.createdDate)}
                 </p>
               </div>
               <div>
