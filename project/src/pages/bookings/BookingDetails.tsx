@@ -426,7 +426,10 @@ export const BookingDetails: React.FC = () => {
       // API URL may be like http://localhost:3000/api – strip trailing /api for static files
       const apiBase = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
       const rootBase = apiBase.replace(/\/api\/?$/, "");
-      return `${rootBase}/uploads/${filePath}`;
+      // Ensure filePath doesn't already start with uploads/
+      const cleanPath = filePath.startsWith('uploads/') ? filePath.replace(/^uploads\//, '') : filePath;
+      const url = `${rootBase}/uploads/${cleanPath}`;
+      return url;
     }
     // Legacy: use data URL
     return (file as any).data || "";
@@ -1145,7 +1148,7 @@ export const BookingDetails: React.FC = () => {
           </Card>
 
           {/* Quick Actions */}
-          {hasRole(["admin", "dispatcher"]) && (
+          {hasRole(["admin", "dispatcher", "driver"]) && (
           <Card>
             <CardHeader>
               <h3 className="text-lg font-medium text-gray-900">Actions</h3>
@@ -1269,20 +1272,22 @@ export const BookingDetails: React.FC = () => {
 
               {booking.status === "completed" && (
                 <div className="space-y-2">
-                  <label className="w-full flex items-center justify-center px-3 py-2 border border-dashed border-amber-400 rounded-md text-sm cursor-pointer hover:bg-amber-50 transition">
-                    <Icon
-                      name="upload"
-                      className="h-4 w-4 mr-2 text-amber-600"
-                    />
-                    {uploading ? "Uploading..." : "Upload Duty Slip(s)"}
-                    <input
-                      type="file"
-                      multiple
-                      accept="image/*,application/pdf"
-                      onChange={onDutySlipUpload}
-                      className="hidden"
-                    />
-                  </label>
+                  {hasRole(["admin", "dispatcher"]) && (
+                    <label className="w-full flex items-center justify-center px-3 py-2 border border-dashed border-amber-400 rounded-md text-sm cursor-pointer hover:bg-amber-50 transition">
+                      <Icon
+                        name="upload"
+                        className="h-4 w-4 mr-2 text-amber-600"
+                      />
+                      {uploading ? "Uploading..." : "Upload Duty Slip(s)"}
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*,application/pdf"
+                        onChange={onDutySlipUpload}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
                   {booking.dutySlips && booking.dutySlips.length > 0 && (
                     <div className="space-y-2 max-h-96 overflow-auto">
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -1350,6 +1355,9 @@ export const BookingDetails: React.FC = () => {
                         })}
                       </div>
                     </div>
+                  )}
+                  {(!booking.dutySlips || booking.dutySlips.length === 0) && hasRole(["driver"]) && (
+                    <p className="text-gray-500 text-sm text-center py-4">No duty slips uploaded yet</p>
                   )}
                 </div>
               )}
@@ -1776,11 +1784,26 @@ export const BookingDetails: React.FC = () => {
             </div>
             <div className="max-h-[70vh] overflow-auto border rounded-lg bg-gray-50">
               {viewingFile.type === 'application/pdf' || viewingFile.url.endsWith('.pdf') ? (
-                <iframe
-                  src={viewingFile.url}
-                  className="w-full h-[70vh]"
-                  title={viewingFile.name}
-                />
+                <div className="w-full h-[70vh] flex flex-col">
+                  <embed
+                    src={`${viewingFile.url}#toolbar=1`}
+                    type="application/pdf"
+                    className="flex-1 w-full"
+                    style={{ minHeight: '500px' }}
+                  />
+                  <div className="p-2 bg-gray-100 border-t flex justify-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        window.open(viewingFile.url, '_blank', 'noopener,noreferrer');
+                      }}
+                    >
+                      <Icon name="file" className="h-4 w-4 mr-2" />
+                      Open in New Tab
+                    </Button>
+                  </div>
+                </div>
               ) : (
                 <img
                   src={viewingFile.url}
