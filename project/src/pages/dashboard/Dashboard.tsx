@@ -4,22 +4,54 @@ import { useApp } from '../../context/AppContext';
 import { Card, CardContent, CardHeader } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Icon } from '../../components/ui/Icon';
-import { format, isBefore, addDays, parseISO } from 'date-fns';
+import { isBefore, addDays, parseISO, format } from 'date-fns';
 import type { Booking, Driver, Vehicle, Company } from '../../types';
+import { getISTDateString, formatDate, formatTime, formatDateTimeFull } from '../../utils/dateHelpers';
+import { vehicleServicingAPI, ServicingNotification } from '../../services/api';
 
 export const Dashboard: React.FC = () => {
   const { user, hasRole } = useAuth();
   const { bookings, drivers, vehicles, companies, customers } = useApp();
-  const [currentDay, setCurrentDay] = React.useState<string>(() => format(new Date(), 'yyyy-MM-dd'));
+  // Get current day in IST
+  const getCurrentISTDay = () => {
+    const now = new Date();
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const istDate = new Date(now.getTime() + istOffset);
+    const year = istDate.getUTCFullYear();
+    const month = String(istDate.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(istDate.getUTCDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+  const [currentDay, setCurrentDay] = React.useState<string>(() => getCurrentISTDay());
+  const [servicingNotifications, setServicingNotifications] = React.useState<ServicingNotification[]>([]);
+  const [loadingNotifications, setLoadingNotifications] = React.useState(false);
 
   // Tick current day periodically so sections auto-refresh across midnight
   React.useEffect(() => {
     const interval = setInterval(() => {
-      const today = format(new Date(), 'yyyy-MM-dd');
+      const today = getCurrentISTDay();
       setCurrentDay(prev => (prev !== today ? today : prev));
     }, 60 * 1000); // check every minute
     return () => clearInterval(interval);
   }, []);
+
+  // Load servicing notifications
+  const loadServicingNotifications = React.useCallback(() => {
+    if (hasRole(['admin', 'dispatcher', 'accountant'])) {
+      setLoadingNotifications(true);
+      vehicleServicingAPI.getNotifications()
+        .then(setServicingNotifications)
+        .catch(() => setServicingNotifications([]))
+        .finally(() => setLoadingNotifications(false));
+    }
+  }, [hasRole]);
+
+  React.useEffect(() => {
+    loadServicingNotifications();
+    // Refresh notifications every 5 minutes
+    const interval = setInterval(loadServicingNotifications, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [loadServicingNotifications]);
 
   // If current user is a driver, resolve driver entity (match by name for demo)
   const currentDriver =
@@ -41,22 +73,21 @@ export const Dashboard: React.FC = () => {
 
   // Calculate metrics
   const todayBookings = bookings.filter((booking: Booking) => {
-    const bookingDate = parseISO(booking.startDate);
-    return format(bookingDate, 'yyyy-MM-dd') === currentDay && bookingBelongsToCurrentDriver(booking.driverId);
+    const bookingISTDate = getISTDateString(booking.startDate);
+    return bookingISTDate === currentDay && bookingBelongsToCurrentDriver(booking.driverId);
   });
 
   const ongoingTrips = bookings.filter((booking: Booking) => booking.status === 'ongoing' && bookingBelongsToCurrentDriver(booking.driverId));
   const completedToday = bookings.filter((booking: Booking) =>
     booking.status === 'completed' &&
-    format(parseISO(booking.startDate), 'yyyy-MM-dd') === currentDay &&
+    getISTDateString(booking.startDate) === currentDay &&
     bookingBelongsToCurrentDriver(booking.driverId)
   );
 
   const upcomingTrips = bookings
     .filter((booking: Booking) => {
-      const bookingDate = parseISO(booking.startDate);
-      const bookingDay = format(bookingDate, 'yyyy-MM-dd');
-      return bookingDay > currentDay && bookingBelongsToCurrentDriver(booking.driverId);
+      const bookingISTDate = getISTDateString(booking.startDate);
+      return bookingISTDate > currentDay && bookingBelongsToCurrentDriver(booking.driverId);
     })
     .sort((a: Booking, b: Booking) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
 
@@ -215,44 +246,46 @@ export const Dashboard: React.FC = () => {
         </Card>
       </div>
 
-      {/* Extra Metrics */}
-      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center">
-              <Icon name="car" className="h-8 w-8 text-blue-600" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Total Vehicles</p>
-                <p className="text-2xl font-bold text-gray-900">{vehicles.length}</p>
+      {/* Extra Metrics - Hidden from drivers */}
+      {user?.role !== 'driver' && (
+        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <Icon name="car" className="h-8 w-8 text-blue-600" />
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-500">Total Vehicles</p>
+                  <p className="text-2xl font-bold text-gray-900">{vehicles.length}</p>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center">
-              <Icon name="user" className="h-8 w-8 text-purple-600" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Total Drivers</p>
-                <p className="text-2xl font-bold text-gray-900">{drivers.length}</p>
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <Icon name="user" className="h-8 w-8 text-purple-600" />
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-500">Total Drivers</p>
+                  <p className="text-2xl font-bold text-gray-900">{drivers.length}</p>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center">
-              <Icon name="building" className="h-8 w-8 text-emerald-600" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Total Customers</p>
-                <p className="text-2xl font-bold text-gray-900">{(customers?.length) ?? 0}</p>
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <Icon name="building" className="h-8 w-8 text-emerald-600" />
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-500">Total Customers</p>
+                  <p className="text-2xl font-bold text-gray-900">{(customers?.length) ?? 0}</p>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Today's Trips */}
@@ -273,7 +306,7 @@ export const Dashboard: React.FC = () => {
                         {booking.pickupLocation} → {booking.dropLocation}
                       </p>
                       <p className="text-xs text-gray-400">
-                        {format(parseISO(booking.startDate), 'h:mm a')}
+                        {formatTime(booking.startDate)}
                       </p>
                     </div>
                     <Badge variant={booking.status}>
@@ -305,7 +338,7 @@ export const Dashboard: React.FC = () => {
                           {booking.pickupLocation} → {booking.dropLocation}
                         </p>
                         <p className="text-xs text-gray-400">
-                          {format(parseISO(booking.startDate), 'PPP p')}
+                          {formatDateTimeFull(booking.startDate)}
                         </p>
                       </div>
                       <Badge variant={booking.status}>
@@ -369,7 +402,7 @@ export const Dashboard: React.FC = () => {
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-medium text-orange-900">
-                        {format(parseISO(alert.expiry), 'MMM d, yyyy')}
+                        {formatDate(alert.expiry)}
                       </p>
                     </div>
                   </div>
@@ -378,9 +411,59 @@ export const Dashboard: React.FC = () => {
             </div>
           </CardContent>
         </Card>
-
-       
       </div>
+
+      {/* Servicing Notifications (EMI, Insurance, Pollution) */}
+      {hasRole(['admin', 'dispatcher', 'accountant']) && (
+        <Card>
+          <CardHeader>
+            <h3 className="text-lg font-medium text-gray-900">Servicing Notifications</h3>
+          </CardHeader>
+          <CardContent>
+            {loadingNotifications ? (
+              <p className="text-gray-500">Loading notifications...</p>
+            ) : servicingNotifications.length === 0 ? (
+              <p className="text-gray-500">No servicing notifications</p>
+            ) : (
+              <div className="space-y-3 max-h-80 overflow-y-auto pr-1 custom-scrollbar">
+                {servicingNotifications.map((notif, index) => {
+                  const isExpired = notif.status === 'expired';
+                  const bgColor = isExpired ? 'bg-red-50 border-red-200' : 'bg-yellow-50 border-yellow-200';
+                  const textColor = isExpired ? 'text-red-900' : 'text-yellow-900';
+                  const labelColor = isExpired ? 'text-red-700' : 'text-yellow-700';
+                  
+                  const typeLabel = notif.type === 'emi' ? 'EMI' : notif.type === 'insurance' ? 'Insurance' : 'Pollution';
+                  
+                  return (
+                    <div key={index} className={`flex items-center justify-between p-3 ${bgColor} border rounded-lg`}>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className={`font-medium ${textColor}`}>
+                            {typeLabel} - {isExpired ? 'Expired' : 'Due Soon'}
+                          </p>
+                          {notif.amount && (
+                            <span className={`text-xs ${labelColor}`}>
+                              ₹{notif.amount.toLocaleString()}
+                            </span>
+                          )}
+                        </div>
+                        <p className={`text-sm ${labelColor}`}>
+                          {notif.vehicleNumber} - {notif.description}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className={`text-sm font-medium ${textColor}`}>
+                          {formatDate(notif.dueDate)}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
 
       {/* <div className="grid grid-cols-1 lg:grid-cols-2 gap-6"> */}
@@ -403,7 +486,7 @@ export const Dashboard: React.FC = () => {
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-medium text-orange-900">
-                        {format(parseISO(alert.expiry), 'MMM d, yyyy')}
+                        {formatDate(alert.expiry)}
                       </p>
                     </div>
                   </div>

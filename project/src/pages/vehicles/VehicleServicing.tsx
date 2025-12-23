@@ -30,28 +30,44 @@ export const VehicleServicingPage: React.FC = () => {
         .finally(()=>setLoading(false));
     } else {
       setDoc(null);
+      lastSavedRef.current = '';
     }
   }, [selectedVehicleId]);
 
-  const ensureDoc = () => {
-    if (!doc && selectedVehicleId) {
-      setDoc({ vehicleId: selectedVehicleId, oilChanges: [], partsReplacements: [], tyres: [], installments: [], insurances: [], legalPapers: [] });
-    }
+  const createEmptyDoc = (vehicleId: string): VehicleServicingDTO => ({
+    vehicleId,
+    oilChanges: [],
+    partsReplacements: [],
+    tyres: [],
+    installments: [],
+    insurances: [],
+    legalPapers: [],
+  });
+
+  const addRow = <
+    K extends keyof VehicleServicingDTO,
+    U extends VehicleServicingDTO[K] extends (infer R)[] ? R : never
+  >(section: K, template: U) => {
+    if (!selectedVehicleId) return;
+    setDoc((prev) => {
+      const base = prev ?? createEmptyDoc(selectedVehicleId);
+      const current = (base[section] as unknown as U[]) ?? [];
+      const items = [...current, template];
+      return { ...base, [section]: items } as VehicleServicingDTO;
+    });
   };
 
-  const updateSection = <K extends keyof VehicleServicingDTO, U extends VehicleServicingDTO[K] extends (infer R)[] ? R : never>(section: K, items: U[]) => {
-    if (!doc) return; setDoc({ ...doc, [section]: items } as VehicleServicingDTO);
-  };
-
-  const addRow = <K extends keyof VehicleServicingDTO, U extends VehicleServicingDTO[K] extends (infer R)[] ? R : never>(section: K, template: U) => {
-    ensureDoc();
-    if (!doc) return; // after ensureDoc doc may still be null until next render
-    const items = ([...(doc[section] as unknown as U[]), template]);
-    updateSection(section, items as U[]);
-  };
-
-  const removeRow = <K extends keyof VehicleServicingDTO, U extends VehicleServicingDTO[K] extends (infer R)[] ? R : never>(section: K, index: number) => {
-    if (!doc) return; const original = doc[section] as unknown as U[]; const arr: U[] = [...original]; arr.splice(index,1); updateSection(section, arr);
+  const removeRow = <
+    K extends keyof VehicleServicingDTO,
+    U extends VehicleServicingDTO[K] extends (infer R)[] ? R : never
+  >(section: K, index: number) => {
+    setDoc((prev) => {
+      if (!prev) return prev;
+      const original = (prev[section] as unknown as U[]) ?? [];
+      const arr = [...original];
+      arr.splice(index, 1);
+      return { ...prev, [section]: arr } as VehicleServicingDTO;
+    });
   };
 
   const saveAll = async () => {
@@ -123,11 +139,15 @@ export const VehicleServicingPage: React.FC = () => {
   );
 
   const updateField = <K extends keyof VehicleServicingDTO, U extends VehicleServicingDTO[K] extends (infer R)[] ? R : never>(section: K, index: number, key: string, value: unknown) => {
-    if (!doc) return; const original = doc[section] as unknown as U[]; const arr: U[] = [...original];
-    const current = arr[index] as unknown as Record<string, unknown>;
-    const updated = { ...current, [key]: value } as unknown as U;
-    arr[index] = updated;
-    updateSection(section, arr);
+    setDoc((prev) => {
+      if (!prev) return prev;
+      const original = (prev[section] as unknown as U[]) ?? [];
+      const arr: U[] = [...original];
+      const current = (arr[index] as unknown as Record<string, unknown>) || {};
+      const updated = { ...current, [key]: value } as unknown as U;
+      arr[index] = updated;
+      return { ...prev, [section]: arr } as VehicleServicingDTO;
+    });
   };
 
   const renderParts = () => doc && (
@@ -198,13 +218,14 @@ export const VehicleServicingPage: React.FC = () => {
 
   const renderLegal = () => doc && (
     <Card>
-      <CardHeader>{sectionHeader('Pollution / Legal Papers', ()=>addRow('legalPapers', { type:'pollution', description:'', cost:0, expiryDate:'' }))}</CardHeader>
+      <CardHeader>{sectionHeader('Pollution / Legal Papers', ()=>addRow('legalPapers', { type:'pollution', description:'', cost:0, date:'', expiryDate:'' }))}</CardHeader>
       <CardContent className="space-y-4">
         {(doc.legalPapers||[]).map((lp,i)=>(
-          <div key={i} className="relative grid grid-cols-1 md:grid-cols-4 gap-4 bg-gray-50 p-3 rounded-md">
+          <div key={i} className="relative grid grid-cols-1 md:grid-cols-5 gap-4 bg-gray-50 p-3 rounded-md">
             {textInput('Type', lp.type, v=>updateField('legalPapers', i, 'type', v))}
             {textInput('Description', lp.description, v=>updateField('legalPapers', i, 'description', v))}
             {numberInput('Cost', lp.cost, v=>updateField('legalPapers', i, 'cost', v))}
+            {dateInput('Date', lp.date, v=>updateField('legalPapers', i, 'date', v))}
             {dateInput('Expiry', lp.expiryDate, v=>updateField('legalPapers', i, 'expiryDate', v))}
             <button type="button" onClick={()=>removeRow('legalPapers', i)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full h-6 w-6 text-xs">×</button>
           </div>

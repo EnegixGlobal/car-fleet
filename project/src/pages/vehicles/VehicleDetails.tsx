@@ -5,6 +5,7 @@ import { vehicleServicingAPI, VehicleServicingDTO, vehicleCategoryAPI, VehicleCa
 import { Card, CardContent, CardHeader } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Icon } from '../../components/ui/Icon';
+import { formatDate, formatDateLocale } from '../../utils/dateHelpers';
 
 export const VehicleDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -35,6 +36,16 @@ export const VehicleDetails: React.FC = () => {
   const categoryInfo = vehicle
     ? vehicleCategories.find((c) => c.id === vehicle.categoryId)
     : undefined;
+
+  // Helper to extract date string from MongoDB $date format or regular string
+  const extractDateString = (dateValue: string | { $date?: string } | undefined | null): string | null => {
+    if (!dateValue) return null;
+    if (typeof dateValue === 'string') return dateValue;
+    if (typeof dateValue === 'object' && '$date' in dateValue && typeof dateValue.$date === 'string') {
+      return dateValue.$date;
+    }
+    return null;
+  };
 
   if (!vehicle) {
     return (
@@ -74,24 +85,24 @@ export const VehicleDetails: React.FC = () => {
             <div className="md:col-span-2">
               <p className="font-medium mb-2">Vehicle Image</p>
               <img
-  src={vehicle.photo}
-  alt="Vehicle"
-  className="h-20 w-30 rounded border object-cover bg-gray-50"
-  crossOrigin="anonymous"
-  onError={(e) => {
-    const target = e.target as HTMLImageElement;
-    target.style.display = 'none';
-    const parent = target.parentElement;
-    if (parent && !parent.querySelector('.error-message')) {
-      const errorDiv = document.createElement('div');
-      errorDiv.className =
-        'error-message flex items-center justify-center h-20 w-30 rounded bg-gray-100 border';
-      errorDiv.innerHTML =
-        '<p class="text-gray-500 text-[10px] text-center">No Image</p>';
-      parent.appendChild(errorDiv);
-    }
-  }}
-/>
+                src={vehicle.photo}
+                alt="Vehicle"
+                className="h-20 w-30 rounded border object-cover bg-gray-50"
+                crossOrigin="anonymous"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                  const parent = target.parentElement;
+                  if (parent && !parent.querySelector('.error-message')) {
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className =
+                      'error-message flex items-center justify-center h-20 w-30 rounded bg-gray-100 border';
+                    errorDiv.innerHTML =
+                      '<p class="text-gray-500 text-[10px] text-center">No Image</p>';
+                    parent.appendChild(errorDiv);
+                  }
+                }}
+              />
 
             </div>
           )}
@@ -99,7 +110,7 @@ export const VehicleDetails: React.FC = () => {
             <span className="font-medium">Category:</span>{' '}
 
             <span>
-              {vehicle.category || categoryInfo?.name }{' - '}
+              {vehicle.category || categoryInfo?.name}{' - '}
               {categoryInfo?.description && (
                 <span className="text-gray-600 text-sm">{categoryInfo.description}</span>
               )}
@@ -110,7 +121,7 @@ export const VehicleDetails: React.FC = () => {
           <div><span className="font-medium">Status:</span> {vehicle.status}</div>
           {vehicle.mileageTrips !== undefined && <div><span className="font-medium">Trips:</span> {vehicle.mileageTrips}</div>}
           {vehicle.mileageKm !== undefined && <div><span className="font-medium">Mileage (km):</span> {vehicle.mileageKm?.toLocaleString()}</div>}
-          <div><span className="font-medium">Created:</span> {vehicle.createdAt?.slice(0, 10)}</div>
+          <div><span className="font-medium">Created:</span> {formatDate(extractDateString(vehicle.createdAt as any) || '')}</div>
           {vehicle.document && (
             <div className="md:col-span-2">
               <span className="font-medium">Document:</span>{' '}
@@ -125,10 +136,10 @@ export const VehicleDetails: React.FC = () => {
           <h2 className="text-xl font-semibold text-gray-900">Document Expiry</h2>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-          <div><span className="font-medium">Insurance:</span> {vehicle.insuranceExpiry}</div>
-          <div><span className="font-medium">Fitness:</span> {vehicle.fitnessExpiry}</div>
-          <div><span className="font-medium">Permit:</span> {vehicle.permitExpiry}</div>
-          <div><span className="font-medium">Pollution:</span> {vehicle.pollutionExpiry}</div>
+          <div><span className="font-medium">Insurance:</span> {formatDate(extractDateString(vehicle.insuranceExpiry as any) || '')}</div>
+          <div><span className="font-medium">Fitness:</span> {formatDate(extractDateString(vehicle.fitnessExpiry as any) || '')}</div>
+          <div><span className="font-medium">Permit:</span> {formatDate(extractDateString(vehicle.permitExpiry as any) || '')}</div>
+          <div><span className="font-medium">Pollution:</span> {formatDate(extractDateString(vehicle.pollutionExpiry as any) || '')}</div>
         </CardContent>
       </Card>
 
@@ -256,7 +267,7 @@ export const VehicleDetails: React.FC = () => {
             <div key={b.id} className="flex items-center justify-between p-2 border rounded-md">
               <div>
                 <p className="font-medium">{b.pickupLocation} → {b.dropLocation}</p>
-                <p className="text-xs text-gray-500">{b.startDate.slice(0, 10)} • {b.status}</p>
+                <p className="text-xs text-gray-500">{formatDateLocale(b.startDate)} • {b.status}</p>
               </div>
               <div className="text-right">
                 <p className="font-medium text-green-600">₹{b.totalAmount.toLocaleString()}</p>

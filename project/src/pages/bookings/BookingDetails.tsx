@@ -9,8 +9,8 @@ import { Modal } from "../../components/ui/Modal";
 import { Input } from "../../components/ui/Input";
 import { Select } from "../../components/ui/Select";
 import { Icon } from "../../components/ui/Icon";
-import { format, parseISO } from "date-fns";
 import { UploadedFile, Expense, Booking, DriverPayment, DriverFinancePayment } from "../../types";
+import { formatDateFull, formatDateTimeFull, formatDateTimeLocale, formatDateLocale } from "../../utils/dateHelpers";
 import { bookingAPI, vehicleCategoryAPI, VehicleCategoryDTO } from "../../services/api";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
@@ -62,6 +62,7 @@ export const BookingDetails: React.FC = () => {
     useState<DriverPayment | null>(null);
   const [exporting, setExporting] = useState(false);
   const [vehicleCategories, setVehicleCategories] = useState<VehicleCategoryDTO[]>([]);
+  const [viewingFile, setViewingFile] = useState<{ url: string; name: string; type: string } | null>(null);
 
   const booking = bookings.find((b) => b.id === id);
 
@@ -85,8 +86,10 @@ export const BookingDetails: React.FC = () => {
         const dp = await bookingAPI.listDriverPayments(id);
         console.log('Driver payments received from backend:', dp);
         setDriverPayments(dp as DriverPayment[]);
-      } catch {
-        /* ignore */
+      } catch (error) {
+        console.error('Failed to load driver payments:', error);
+        // Set empty array on error so UI shows "No driver payments recorded"
+        setDriverPayments([]);
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -382,30 +385,12 @@ export const BookingDetails: React.FC = () => {
     if (!files || files.length === 0) return;
     setUploading(true);
     try {
-      const existing = booking.dutySlips || [];
-      const converted: UploadedFile[] = await Promise.all(
-        Array.from(files).map(
-          (file) =>
-            new Promise<UploadedFile>((resolve, reject) => {
-              const reader = new FileReader();
-              reader.onload = () =>
-                resolve({
-                  id:
-                    Date.now().toString() + Math.random().toString(36).slice(2),
-                  name: file.name,
-                  type: file.type,
-                  size: file.size,
-                  data: reader.result as string,
-                  uploadedAt: new Date().toISOString(),
-                });
-              reader.onerror = reject;
-              reader.readAsDataURL(file);
-            })
-        )
-      );
-      updateBooking(booking.id, { dutySlips: [...existing, ...converted] });
+      const fileArray = Array.from(files);
+      const updated = await bookingAPI.uploadDutySlips(booking.id, fileArray);
+      updateBooking(booking.id, updated as unknown as Partial<Booking>);
       toast.success("Duty slip(s) uploaded");
-    } catch {
+    } catch (error) {
+      console.error('Upload error:', error);
       toast.error("Upload failed");
     } finally {
       setUploading(false);
@@ -413,9 +398,48 @@ export const BookingDetails: React.FC = () => {
     }
   };
 
-  const removeDutySlip = (id: string) => {
-    updateBooking(booking.id, {
-      dutySlips: (booking.dutySlips || []).filter((f) => f.id !== id),
+  const removeDutySlip = async (file: UploadedFile) => {
+    if (!confirm("Remove this duty slip?")) return;
+    try {
+      // Check if file has a path property (backend file) - it might be in the file object or as a string
+      const filePath = (file as any).path || (typeof file === 'string' ? file : null);
+      if (filePath) {
+        const updated = await bookingAPI.removeDutySlip(booking.id, filePath);
+        updateBooking(booking.id, updated as unknown as Partial<Booking>);
+        toast.success("Duty slip removed");
+      } else {
+        // Legacy: local file removal
+        updateBooking(booking.id, {
+          dutySlips: (booking.dutySlips || []).filter((f) => (f as any).id !== (file as any).id),
+        });
+        toast.success("Duty slip removed");
+      }
+    } catch {
+      toast.error("Failed to remove duty slip");
+    }
+  };
+
+  const getFileUrl = (file: UploadedFile): string => {
+    // If file has a path (backend file), construct URL
+    const filePath = (file as any).path;
+    if (filePath) {
+      // API URL may be like http://localhost:3000/api – strip trailing /api for static files
+      const apiBase = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
+      const rootBase = apiBase.replace(/\/api\/?$/, "");
+      return `${rootBase}/uploads/${filePath}`;
+    }
+    // Legacy: use data URL
+    return (file as any).data || "";
+  };
+
+  const handleFileClick = (file: UploadedFile) => {
+    const url = getFileUrl(file);
+    const fileName = (file as any).name || (file as any).description || "Duty Slip";
+    const fileType = (file as any).type || (fileName?.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
+    setViewingFile({
+      url,
+      name: fileName,
+      type: fileType,
     });
   };
 
@@ -467,7 +491,7 @@ export const BookingDetails: React.FC = () => {
               Booking #{booking.id.slice(-6)}
             </h1>
             <p className="text-gray-500">
-              Created {format(parseISO(booking.createdAt), "PPP")}
+              Created {formatDateFull(booking.createdAt)}
             </p>
           </div>
         </div>
@@ -554,7 +578,7 @@ export const BookingDetails: React.FC = () => {
                   <div>
                     <p className="font-medium">Start</p>
                     <p className="text-sm text-gray-600">
-                      {format(parseISO(booking.startDate), "PPP p")}
+                      {formatDateTimeFull(booking.startDate)}
                     </p>
                   </div>
                 </div>
@@ -564,7 +588,7 @@ export const BookingDetails: React.FC = () => {
                   <div>
                     <p className="font-medium">End</p>
                     <p className="text-sm text-gray-600">
-                      {format(parseISO(booking.endDate), "PPP p")}
+                      {formatDateTimeFull(booking.endDate)}
                     </p>
                   </div>
                 </div>
@@ -640,6 +664,7 @@ export const BookingDetails: React.FC = () => {
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-medium text-gray-900">Expenses</h3>
                 {hasRole(["admin", "dispatcher"]) &&
+                  !hasRole(["driver"]) &&
                   booking.status !== "booked" && (
                     <Button
                       size="sm"
@@ -721,7 +746,8 @@ export const BookingDetails: React.FC = () => {
             <CardHeader>
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-medium text-gray-900">On Duty Payments</h3>
-                {hasRole(["admin", "accountant", "dispatcher"]) && (
+                {hasRole(["admin", "accountant", "dispatcher"]) &&
+                  !hasRole(["driver"]) && (
                   <Button
                     size="sm"
                     variant="outline"
@@ -804,7 +830,9 @@ export const BookingDetails: React.FC = () => {
                   Driver Payments
                 </h3>
                 <div className="flex items-center space-x-2">
-                  {driver && hasRole(["admin", "accountant", "dispatcher"]) && (
+                  {driver &&
+                    hasRole(["admin", "accountant", "dispatcher"]) &&
+                    !hasRole(["driver"]) && (
                     <Button
                       size="sm"
                       variant="outline"
@@ -817,7 +845,8 @@ export const BookingDetails: React.FC = () => {
                       <Icon name="plus" className="h-4 w-4 mr-1" /> Add
                     </Button>
                   )}
-                  {driverPayments.length > 0 && (
+                  {driverPayments.length > 0 &&
+                    !hasRole(["driver"]) && (
                     <Button
                       size="sm"
                       variant="outline"
@@ -932,7 +961,7 @@ export const BookingDetails: React.FC = () => {
                           )}
                         </div>
                         <div className="text-right text-xs text-gray-500">
-                          <p>{new Date(p.date).toLocaleDateString()}</p>
+                          <p>{formatDateLocale(p.date)}</p>
                         </div>
                       </div>
                       {hasRole(["admin", "accountant", "dispatcher"]) && (
@@ -1036,7 +1065,7 @@ export const BookingDetails: React.FC = () => {
                         </span>
                       </div>
                       <p className="text-xs text-gray-500">
-                        {format(parseISO(history.timestamp), "PPP p")}
+                        {formatDateTimeFull(history.timestamp)}
                       </p>
                     </div>
                   </div>
@@ -1255,29 +1284,71 @@ export const BookingDetails: React.FC = () => {
                     />
                   </label>
                   {booking.dutySlips && booking.dutySlips.length > 0 && (
-                    <div className="space-y-2 max-h-48 overflow-auto">
-                      {booking.dutySlips.map((file) => (
-                        <div
-                          key={file.id}
-                          className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded text-xs"
-                        >
-                          <div className="truncate">
-                            <span className="font-medium text-gray-700">
-                              {file.name}
-                            </span>
-                            <span className="ml-2 text-gray-500">
-                              {(file.size / 1024).toFixed(1)} KB
-                            </span>
-                          </div>
-                          <button
-                            onClick={() => removeDutySlip(file.id)}
-                            aria-label="Remove file"
-                            className="text-red-600 hover:text-red-800 p-1"
-                          >
-                            <Icon name="close" className="h-3 w-3" />
-                          </button>
-                        </div>
-                      ))}
+                    <div className="space-y-2 max-h-96 overflow-auto">
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        {booking.dutySlips.map((file, index) => {
+                          const fileUrl = getFileUrl(file);
+                          const fileObj = file as any;
+                          const fileName = fileObj.name || fileObj.description || 'Duty Slip';
+                          const fileType = fileObj.type || '';
+                          const isImage = fileType?.startsWith('image/') || fileName?.match(/\.(jpg|jpeg|png|gif|webp)$/i);
+                          const isPdf = fileType === 'application/pdf' || fileName?.endsWith('.pdf');
+                          const fileId = fileObj.id || fileObj._id || `file-${index}`;
+                          
+                          return (
+                            <div
+                              key={fileId}
+                              className="relative group bg-gray-50 rounded-lg overflow-hidden border border-gray-200 hover:border-amber-400 transition cursor-pointer"
+                              onClick={() => handleFileClick(file)}
+                            >
+                              {isImage ? (
+                                <img
+                                  src={fileUrl}
+                                  alt={fileName}
+                                  className="w-full h-32 object-cover"
+                                  onError={(e) => {
+                                    // Fallback if image fails to load
+                                    (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect fill="%23ddd" width="100" height="100"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="14" dy="10.5" font-weight="bold" x="50%" y="50%" text-anchor="middle"%3EImage%3C/text%3E%3C/svg%3E';
+                                  }}
+                                />
+                              ) : isPdf ? (
+                                <div className="w-full h-32 flex items-center justify-center bg-red-50">
+                                  <div className="text-center">
+                                    <Icon name="file" className="h-8 w-8 text-red-600 mx-auto mb-1" />
+                                    <p className="text-xs text-red-700 font-medium">PDF</p>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="w-full h-32 flex items-center justify-center bg-gray-100">
+                                  <Icon name="file" className="h-8 w-8 text-gray-400" />
+                                </div>
+                              )}
+                              <div className="p-2 bg-white border-t">
+                                <p className="text-xs font-medium text-gray-700 truncate" title={fileName}>
+                                  {fileName}
+                                </p>
+                                {fileObj.size && (
+                                  <p className="text-xs text-gray-500">
+                                    {(fileObj.size / 1024).toFixed(1)} KB
+                                  </p>
+                                )}
+                              </div>
+                              {hasRole(["admin", "dispatcher"]) && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    removeDutySlip(file);
+                                  }}
+                                  aria-label="Remove file"
+                                  className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition"
+                                >
+                                  <Icon name="close" className="h-3 w-3" />
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1677,6 +1748,52 @@ export const BookingDetails: React.FC = () => {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Duty Slip Viewer Modal */}
+      <Modal
+        isOpen={!!viewingFile}
+        onClose={() => setViewingFile(null)}
+        title={viewingFile?.name || "Duty Slip"}
+        size="lg"
+      >
+        {viewingFile && (
+          <div className="space-y-4">
+            <div className="flex justify-end">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const link = document.createElement('a');
+                  link.href = viewingFile.url;
+                  link.download = viewingFile.name;
+                  link.target = '_blank';
+                  link.click();
+                }}
+              >
+                <Icon name="download" className="h-4 w-4 mr-2" />
+                Download
+              </Button>
+            </div>
+            <div className="max-h-[70vh] overflow-auto border rounded-lg bg-gray-50">
+              {viewingFile.type === 'application/pdf' || viewingFile.url.endsWith('.pdf') ? (
+                <iframe
+                  src={viewingFile.url}
+                  className="w-full h-[70vh]"
+                  title={viewingFile.name}
+                />
+              ) : (
+                <img
+                  src={viewingFile.url}
+                  alt={viewingFile.name}
+                  className="w-full h-auto"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect fill="%23ddd" width="400" height="300"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="18" dy="10.5" font-weight="bold" x="50%" y="50%" text-anchor="middle"%3EImage not available%3C/text%3E%3C/svg%3E';
+                  }}
+                />
+              )}
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

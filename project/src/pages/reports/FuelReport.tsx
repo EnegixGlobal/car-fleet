@@ -9,6 +9,7 @@ import { fuelAPI, FuelEntryDTO, bookingAPI } from '../../services/api';
 import { DriverFinancePayment } from '../../types';
 import { useApp } from '../../context/AppContext';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { formatDateLocale } from '../../utils/dateHelpers';
 
 interface FuelRow {
   id: string;
@@ -304,7 +305,7 @@ export const FuelReport: React.FC = () => {
         data={rows}
         columns={[
           { key: 'sNo', header: 'S.No' },
-          { key: 'fuelFillDate', header: 'Fuel Date', render: (r) => new Date(r.fuelFillDate).toLocaleDateString() },
+          { key: 'fuelFillDate', header: 'Fuel Date', render: (r) => formatDateLocale(r.fuelFillDate) },
           { key: 'vehicle', header: 'Vehicle' },
           { key: 'booking', header: 'Booking' },
           { key: 'driver', header: 'Driver' },

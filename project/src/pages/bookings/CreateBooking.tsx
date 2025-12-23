@@ -27,7 +27,7 @@ const bookingSchema = z.object({
   vehicleCategoryId: z.string().min(1, 'Vehicle category is required'),
   vehicleId: z.string().optional(),
   driverId: z.string().optional(),
-  tariffRate: z.number().min(0, 'Tariff rate must be positive'),
+  tariffRate: z.coerce.number().min(0, 'Tariff rate must be a positive number'),
   totalAmount: z.number().min(0, 'Total amount must be positive'),
   advanceReceived: z.number().min(0, 'Advance must be positive'),
   advanceReason: z.string().optional(),
@@ -75,7 +75,7 @@ export const CreateBooking: React.FC = () => {
     setValue,
     formState: { errors, isSubmitting },
   } = useForm<BookingFormData>({
-    resolver: zodResolver(bookingSchema),
+    resolver: zodResolver(bookingSchema) as any,
     defaultValues: {
       tariffRate: 0,
       totalAmount: 0,
@@ -129,6 +129,7 @@ export const CreateBooking: React.FC = () => {
         vehicleCategoryId: data.vehicleCategoryId,
         vehicleId: data.vehicleId || undefined,
         driverId: data.driverId || undefined,
+        tariffRate: data.tariffRate,
         balance: data.totalAmount - data.advanceReceived,
         status: 'booked' as const,
         expenses: [],
@@ -216,7 +217,7 @@ export const CreateBooking: React.FC = () => {
           <h2 className="text-xl font-semibold text-gray-900">Booking Details</h2>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={handleSubmit(onSubmit as any)} className="space-y-6">
             {/* Customer Information */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
@@ -423,9 +424,8 @@ export const CreateBooking: React.FC = () => {
             {/* Tariff and Payment */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <Input
-                {...register('tariffRate', { valueAsNumber: true })}
-                type="number"
-                step="0.01"
+                {...register('tariffRate')}
+                type="text"
                 label="Tariff Rate (per km/hour)"
                 error={errors.tariffRate?.message}
                 placeholder="0.00"

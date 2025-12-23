@@ -7,8 +7,8 @@ import { DataTable } from "../../components/common/DataTable";
 import { Button } from "../../components/ui/Button";
 import { Badge } from "../../components/ui/Badge";
 import { Icon } from "../../components/ui/Icon";
-import { format, parseISO } from "date-fns";
 import { Booking } from "../../types";
+import { getISTDateString, formatDate, formatTime } from "../../utils/dateHelpers";
 
 export const BookingList: React.FC = () => {
   const navigate = useNavigate();
@@ -56,14 +56,18 @@ export const BookingList: React.FC = () => {
     filteredBookings = filteredBookings.filter(
       (b) => b.bookingSource === sourceFilter
     );
-  if (startDate)
-    filteredBookings = filteredBookings.filter(
-      (b) => b.startDate >= startDate
-    );
-  if (endDate)
-    filteredBookings = filteredBookings.filter(
-      (b) => b.startDate <= endDate + "T23:59:59"
-    );
+  if (startDate) {
+    filteredBookings = filteredBookings.filter((b) => {
+      const bookingISTDate = getISTDateString(b.startDate);
+      return bookingISTDate >= startDate;
+    });
+  }
+  if (endDate) {
+    filteredBookings = filteredBookings.filter((b) => {
+      const bookingISTDate = getISTDateString(b.startDate);
+      return bookingISTDate <= endDate;
+    });
+  }
 
   const getDriverName = (driverId?: string) => {
     if (!driverId) return 'Unassigned';
@@ -156,8 +160,8 @@ export const BookingList: React.FC = () => {
       header: 'Date & Time',
       render: (booking: Booking) => (
         <div>
-          <div className="text-sm">{format(parseISO(booking.startDate), 'MMM d, yyyy')}</div>
-          <div className="text-xs text-gray-500">{format(parseISO(booking.startDate), 'h:mm a')}</div>
+          <div className="text-sm">{formatDate(booking.startDate)}</div>
+          <div className="text-xs text-gray-500">{formatTime(booking.startDate)}</div>
         </div>
       )
     },

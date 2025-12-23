@@ -132,15 +132,34 @@ export const updateStatus = async (req: AuthRequest, res: Response) => {
 };
 
 export const uploadDutySlips = async (req: AuthRequest, res: Response) => {
-  const files = (req.files as Express.Multer.File[]) || [];
-  const uploadedBy = req.body.uploadedBy || "System"; // Get from request body or use default
-  const booking = await service.uploadDutySlips(
-    req.params.id,
-    files,
-    uploadedBy
-  );
-  if (!booking) return res.status(404).json({ message: "Booking not found" });
-  res.json(booking);
+  try {
+    // When using multer().array(), files are stored as an array
+    const files = Array.isArray(req.files) 
+      ? (req.files as Express.Multer.File[])
+      : [];
+    
+    if (files.length === 0) {
+      return res.status(400).json({ message: "No files uploaded" });
+    }
+
+    const uploadedBy = (req.user as any)?.name || req.body.uploadedBy || "System";
+    const booking = await service.uploadDutySlips(
+      req.params.id,
+      files,
+      uploadedBy
+    );
+    
+    if (!booking) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+    
+    res.json(booking);
+  } catch (error: any) {
+    console.error('Error uploading duty slips:', error);
+    res.status(500).json({ 
+      message: error.message || "Failed to upload duty slips" 
+    });
+  }
 };
 
 export const removeDutySlip = async (req: AuthRequest, res: Response) => {

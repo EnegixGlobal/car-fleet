@@ -6,6 +6,7 @@ import { Button } from '../../components/ui/Button';
 import { Icon } from '../../components/ui/Icon';
 import { financeAPI } from '../../services/api';
 import { DriverFinancePayment } from '../../types';
+import { formatDateLocale, formatDate } from '../../utils/dateHelpers';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -29,7 +30,17 @@ export const DriverProfile: React.FC = () => {
     }
     // Remove /api from BASE_URL if present, then construct the URL
     const baseUrl = BASE_URL.replace('/api', '');
-    return `${baseUrl}/uploads/${filename}`;
+    return `${baseUrl}/uploads/Driver/${filename}`;
+  };
+
+  // Helper to extract date string from MongoDB $date format or regular string
+  const extractDateString = (dateValue: string | { $date?: string } | undefined | null): string | null => {
+    if (!dateValue) return null;
+    if (typeof dateValue === 'string') return dateValue;
+    if (typeof dateValue === 'object' && '$date' in dateValue && typeof dateValue.$date === 'string') {
+      return dateValue.$date;
+    }
+    return null;
   };
 
   React.useEffect(() => {
@@ -121,11 +132,11 @@ export const DriverProfile: React.FC = () => {
           <div><span className='font-medium'>Vehicle Type:</span> {driver.vehicleType}</div>
           <div><span className='font-medium'>Payment Mode:</span> {driver.paymentMode}</div>
           {driver.salary !== undefined && <div><span className='font-medium'>Salary/Rate:</span> ₹{driver.salary.toLocaleString()}</div>}
-          <div><span className='font-medium'>Date Of Joining:</span> {driver.dateOfJoining}</div>
+          <div><span className='font-medium'>Date Of Joining:</span> {formatDate(extractDateString(driver.dateOfJoining as any) || '')}</div>
           {driver.referenceNote && <div className='md:col-span-2'><span className='font-medium'>Reference Note:</span> {driver.referenceNote}</div>}
           {driver.document && <div className='md:col-span-2'><span className='font-medium'>Document:</span> <a href={getFileUrl(typeof driver.document === 'string' ? driver.document : driver.document.data)} target='_blank' rel='noopener' className='text-amber-600 underline'>View</a></div>}
-          <div><span className='font-medium'>License Expiry:</span> {driver.licenseExpiry}</div>
-          <div><span className='font-medium'>Police Verification Expiry:</span> {driver.policeVerificationExpiry}</div>
+          <div><span className='font-medium'>License Expiry:</span> {formatDate(extractDateString(driver.licenseExpiry as any) || '')}</div>
+          <div><span className='font-medium'>Police Verification Expiry:</span> {formatDate(extractDateString(driver.policeVerificationExpiry as any) || '')}</div>
           {driver.licenseDocument && (
             <div className='md:col-span-2'>
               <span className='font-medium'>License Document:</span>{' '}
@@ -177,7 +188,7 @@ export const DriverProfile: React.FC = () => {
                 <div>
                   <p className='font-medium'>₹{a.amount.toLocaleString()} {a.settled && <span className='text-green-600'>(Settled)</span>}</p>
                   <p className='text-xs text-gray-500'>{a.description} • {a.date}</p>
-                  {settlementPayment && <p className='text-xs text-green-600'>Settled on {new Date(settlementPayment.date).toLocaleDateString()}</p>}
+                  {settlementPayment && <p className='text-xs text-green-600'>Settled on {formatDateLocale(settlementPayment.date)}</p>}
                 </div>
                 {!a.settled && (
                   <Button size='sm' variant='outline' onClick={() => settleDriverAdvance(driver.id, a.id)}>
@@ -211,7 +222,7 @@ export const DriverProfile: React.FC = () => {
                       {p.mode && <span className='px-2 py-0.5 text-xs rounded-full bg-amber-100 text-amber-700 border border-amber-300'>{p.mode}</span>}
                       {p.settled && <span className='px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-700 border border-green-300'>settled</span>}
                     </div>
-                    <p className='text-xs text-gray-600'>Date: {new Date(p.date).toLocaleDateString()} • {p.description || 'Payment'}{p.bookingId && <> • Booking: <span className='underline text-amber-700'>{bookingLabel}</span></>}
+                    <p className='text-xs text-gray-600'>Date: {formatDateLocale(p.date)} • {p.description || 'Payment'}{p.bookingId && <> • Booking: <span className='underline text-amber-700'>{bookingLabel}</span></>}
                     </p>
                     {p.mode==='fuel-basis' && p.fuelQuantity !== undefined && p.fuelRate !== undefined && (
                       <p className='text-xs text-gray-500'>Fuel: {p.fuelQuantity} L × ₹{p.fuelRate} = ₹{(p.computedAmount ?? p.fuelQuantity * p.fuelRate).toLocaleString()}</p>
