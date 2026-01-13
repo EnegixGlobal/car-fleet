@@ -30,6 +30,7 @@ interface ReportRow {
   createdDate: string;
   finalPaid?: number;
   settled?: boolean;
+  status: "booked" | "ongoing" | "completed" | "yet-to-start" | "canceled";
   action?: never; // Placeholder for Action column
 }
 
@@ -530,6 +531,7 @@ export const DriverReport: React.FC = () => {
           vehicle: vehicle?.registrationNumber || "-",
           createdDate: b.createdAt,
           settled: b.settled || false,
+          status: b.status,
         };
       });
       setRows(finalRows);
@@ -1119,7 +1121,18 @@ export const DriverReport: React.FC = () => {
       <DataTable<ReportRow>
         data={rows}
         columns={[
-          { key: "sNo", header: "S.No" },
+          {
+            key: "sNo",
+            header: "S.No",
+            render: (r) => (
+              <div className="flex items-center gap-1">
+                {r.status === "completed" && (
+                  <Icon name="success" className="h-4 w-4 text-orange-600" />
+                )}
+                <span>{r.sNo}</span>
+              </div>
+            ),
+          },
           {
             key: "bookingDate",
             header: "Booking Date",

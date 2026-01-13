@@ -50,6 +50,7 @@ interface ReportRow {
   driverReceived: number;
   vehicle: string;
   createdDate: string;
+  billed: boolean;
 }
 
 const INDIVIDUAL_FILTER = "__INDIVIDUAL__";
@@ -181,6 +182,7 @@ export const CompanyReport: React.FC = () => {
         driverReceived,
         vehicle: vehicle?.registrationNumber || "-",
         createdDate: b.createdAt,
+        billed: b.billed || false,
       };
     });
     setRows(finalRows);
@@ -488,7 +490,18 @@ export const CompanyReport: React.FC = () => {
       <DataTable<ReportRow>
         data={rows}
         columns={[
-          { key: "sNo", header: "S.No" },
+          {
+            key: "sNo",
+            header: "S.No",
+            render: (r) => (
+              <div className="flex items-center gap-1">
+                {r.billed && (
+                  <Icon name="success" className="h-4 w-4 text-blue-600" />
+                )}
+                <span>{r.sNo}</span>
+              </div>
+            ),
+          },
           { key: "companyName", header: "Company Name" },
           {
             key: "bookingDate",

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import toast from 'react-hot-toast';
@@ -76,8 +76,9 @@ export const EditBooking: React.FC = () => {
     register,
     handleSubmit,
     watch,
-  setValue,
-  reset,
+    setValue,
+    reset,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<BookingFormData>({
     resolver: zodResolver(bookingSchema) as any,
@@ -93,9 +94,9 @@ export const EditBooking: React.FC = () => {
       cityOfWork: '',
       startDate: '',
       endDate: '',
-      vehicleCategoryId: undefined,
-      vehicleId: undefined,
-      driverId: undefined,
+      vehicleCategoryId: '',
+      vehicleId: '',
+      driverId: '',
       tariffRate: 0,
       totalAmount: 0,
       advanceReceived: 0,
@@ -153,9 +154,9 @@ export const EditBooking: React.FC = () => {
       cityOfWork: booking.cityOfWork || '',
       startDate: toDateTimeLocalInput(booking.startDate),
       endDate: toDateTimeLocalInput(booking.endDate),
-      vehicleCategoryId: booking.vehicleCategoryId,
-      vehicleId: booking.vehicleId,
-      driverId: booking.driverId,
+      vehicleCategoryId: booking.vehicleCategoryId || '',
+      vehicleId: booking.vehicleId || '',
+      driverId: booking.driverId || '',
       tariffRate: booking.tariffRate || 0,
       totalAmount: booking.totalAmount,
       advanceReceived: booking.advanceReceived,
@@ -211,15 +212,21 @@ export const EditBooking: React.FC = () => {
       startDate: toISOFromLocalInput(data.startDate),
       endDate: toISOFromLocalInput(data.endDate),
     };
+    
+    // Convert empty strings to null for clearing fields (backend will unset them)
+    const vehicleCategoryId = data.vehicleCategoryId && data.vehicleCategoryId.trim() !== '' ? data.vehicleCategoryId : null;
+    const driverId = data.driverId && data.driverId.trim() !== '' ? data.driverId : null;
+    const vehicleId = data.vehicleId && data.vehicleId.trim() !== '' ? data.vehicleId : null;
+    
     await updateBooking(booking.id, {
       ...data,
       ...normalizedDates,
       companyId: normalizedCompanyId,
       tariffRate: data.tariffRate,
       balance: data.totalAmount - data.advanceReceived,
-      vehicleCategoryId: data.vehicleCategoryId || undefined,
-      driverId: data.driverId || undefined,
-      vehicleId: data.vehicleId || undefined,
+      vehicleCategoryId: vehicleCategoryId as any,
+      driverId: driverId as any,
+      vehicleId: vehicleId as any,
     } as Partial<Booking>);
     toast.success('Booking updated');
     navigate(`/bookings/${booking.id}`);
@@ -333,14 +340,54 @@ export const EditBooking: React.FC = () => {
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Select
-                {...register('vehicleCategoryId')}
-                label="Vehicle Category"
-                placeholder="Select vehicle category"
-                options={vehicleCategoryOptions}
+              <Controller
+                name="vehicleCategoryId"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    {...field}
+                    value={field.value || ''}
+                    onChange={(e) => {
+                      field.onChange(e.target.value === '' ? '' : e.target.value);
+                    }}
+                    label="Vehicle Category"
+                    placeholder="Select vehicle category"
+                    options={vehicleCategoryOptions}
+                  />
+                )}
               />
-              <Select {...register('vehicleId')} label="Vehicle" placeholder="Select vehicle" options={vehicleOptions} />
-              <Select {...register('driverId')} label="Driver" placeholder="Select driver" options={driverOptions} />
+              <Controller
+                name="vehicleId"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    {...field}
+                    value={field.value || ''}
+                    onChange={(e) => {
+                      field.onChange(e.target.value === '' ? '' : e.target.value);
+                    }}
+                    label="Vehicle"
+                    placeholder="Select vehicle"
+                    options={vehicleOptions}
+                  />
+                )}
+              />
+              <Controller
+                name="driverId"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    {...field}
+                    value={field.value || ''}
+                    onChange={(e) => {
+                      field.onChange(e.target.value === '' ? '' : e.target.value);
+                    }}
+                    label="Driver"
+                    placeholder="Select driver"
+                    options={driverOptions}
+                  />
+                )}
+              />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <Input type="text" {...register('tariffRate')} label="Tariff Rate" />

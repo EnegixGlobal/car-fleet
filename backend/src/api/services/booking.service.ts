@@ -126,6 +126,12 @@ export const getBookingById = async (id: string, user?: AuthRequest['user']) => 
 
 export const updateBooking = async (id: string, updates: Partial<IBooking>) => {
   const updateDoc: any = { ...updates };
+  
+  // Preserve $unset if it exists (for clearing fields)
+  if ((updates as any).$unset) {
+    updateDoc.$unset = (updates as any).$unset;
+  }
+  
   if (updates.totalAmount !== undefined || updates.advanceReceived !== undefined) {
     // Recompute balance using existing values if one side missing
     const current = await Booking.findById(id).select('totalAmount advanceReceived');
@@ -193,7 +199,22 @@ export const updateStatus = async (bookingId: string, status: IBooking['status']
     if (!user.customerId) return null;
     filter.customerId = user.customerId;
   }
-  return Booking.findOneAndUpdate(filter, { status, $push: { statusHistory: change } }, { new: true }).populate('companyId driverId vehicleId vehicleCategoryId customerId');
+  
+  // When status is canceled, clear driver, vehicle, and vehicleCategoryId
+  const updateDoc: any = { 
+    status, 
+    $push: { statusHistory: change } 
+  };
+  
+  if (status === 'canceled') {
+    updateDoc.$unset = {
+      driverId: '',
+      vehicleId: '',
+      vehicleCategoryId: ''
+    };
+  }
+  
+  return Booking.findOneAndUpdate(filter, updateDoc, { new: true }).populate('companyId driverId vehicleId vehicleCategoryId customerId');
 };
 
 export const uploadDutySlips = async (bookingId: string, files: Express.Multer.File[], uploadedBy: string) => {

@@ -622,9 +622,9 @@ export const BookingDetails: React.FC = () => {
                   <div>
                     <p className="font-medium">Driver</p>
                     <p className="text-sm text-gray-600">
-                      {driver ? driver.name : "Not assigned"}
+                      {booking.status === "canceled" ? "Not assigned" : (driver ? driver.name : "Not assigned")}
                     </p>
-                    {driver && (
+                    {driver && booking.status !== "canceled" && (
                       <p className="text-xs text-gray-500">{driver.phone}</p>
                     )}
                   </div>
@@ -635,9 +635,9 @@ export const BookingDetails: React.FC = () => {
                   <div>
                     <p className="font-medium">Vehicle</p>
                     <p className="text-sm text-gray-600">
-                      {vehicle ? vehicle.registrationNumber : "Not assigned"}
+                      {booking.status === "canceled" ? "Not assigned" : (vehicle ? vehicle.registrationNumber : "Not assigned")}
                     </p>
-                    {vehicle && (
+                    {vehicle && booking.status !== "canceled" && (
                       <p className="text-xs text-gray-500 capitalize">
                         {vehicle.category}
                         {vehicle.categoryDescription
@@ -653,7 +653,7 @@ export const BookingDetails: React.FC = () => {
                   <div>
                     <p className="font-medium">Vehicle Category</p>
                     <p className="text-sm text-gray-600">
-                      {vehicleCategoryLabel}
+                      {booking.status === "canceled" ? "Not assigned" : vehicleCategoryLabel}
                     </p>
                   </div>
                 </div>
