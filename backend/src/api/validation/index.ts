@@ -158,6 +158,9 @@ export const updateBookingSchema = bookingSchema.partial().extend({
   dutySlipSubmitted: z.boolean().optional(),
   dutySlipSubmittedToCompany: z.boolean().optional(),
   finalPaid: z.number().min(0).optional(),
+  vehicleId: z.string().nullable().optional(),
+  vehicleCategoryId: z.string().nullable().optional(),
+  driverId: z.string().nullable().optional(),
 });
 
 export const customerSchema = z.object({

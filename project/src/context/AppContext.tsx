@@ -451,7 +451,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
   ) => {
     // optimistic status update
     setBookings((prev) =>
-      prev.map((b) => (b.id === id ? { ...b, status } : b))
+      prev.map((b) => {
+        if (b.id === id) {
+          const updated = { ...b, status };
+          // When status is canceled, clear driver, vehicle, and vehicleCategoryId
+          if (status === "canceled") {
+            updated.driverId = undefined;
+            updated.vehicleId = undefined;
+            updated.vehicleCategoryId = undefined;
+          }
+          return updated;
+        }
+        return b;
+      })
     );
     try {
       const updated = await bookingAPI.updateStatus(id, status, changedBy);

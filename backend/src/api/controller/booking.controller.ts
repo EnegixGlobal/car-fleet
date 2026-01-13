@@ -65,18 +65,33 @@ export const getBookingById = async (req: AuthRequest, res: Response) => {
 export const updateBooking = async (req: AuthRequest, res: Response) => {
   const data = updateBookingSchema.parse(req.body);
   const updateData: any = { ...data };
+  const unsetFields: any = {};
 
-  // Convert string IDs to ObjectIds
+  // Handle clearing fields (null or empty string means unset)
+  if (data.vehicleId === null || data.vehicleId === '') {
+    unsetFields.vehicleId = '';
+    delete updateData.vehicleId;
+  } else if (updateData.vehicleId) {
+    updateData.vehicleId = new Types.ObjectId(updateData.vehicleId);
+  }
+
+  if (data.vehicleCategoryId === null || data.vehicleCategoryId === '') {
+    unsetFields.vehicleCategoryId = '';
+    delete updateData.vehicleCategoryId;
+  } else if (updateData.vehicleCategoryId) {
+    updateData.vehicleCategoryId = new Types.ObjectId(updateData.vehicleCategoryId);
+  }
+
+  if (data.driverId === null || data.driverId === '') {
+    unsetFields.driverId = '';
+    delete updateData.driverId;
+  } else if (updateData.driverId) {
+    updateData.driverId = new Types.ObjectId(updateData.driverId);
+  }
+
+  // Convert string IDs to ObjectIds for other fields
   if (updateData.companyId)
     updateData.companyId = new Types.ObjectId(updateData.companyId);
-  if (updateData.vehicleId)
-    updateData.vehicleId = new Types.ObjectId(updateData.vehicleId);
-  if (updateData.vehicleCategoryId)
-    updateData.vehicleCategoryId = new Types.ObjectId(
-      updateData.vehicleCategoryId
-    );
-  if (updateData.driverId)
-    updateData.driverId = new Types.ObjectId(updateData.driverId);
   if (updateData.customerId)
     updateData.customerId = new Types.ObjectId(updateData.customerId);
 
@@ -84,6 +99,11 @@ export const updateBooking = async (req: AuthRequest, res: Response) => {
   if (updateData.startDate)
     updateData.startDate = new Date(updateData.startDate);
   if (updateData.endDate) updateData.endDate = new Date(updateData.endDate);
+
+  // Add $unset if we need to clear fields
+  if (Object.keys(unsetFields).length > 0) {
+    updateData.$unset = unsetFields;
+  }
 
   const booking = await service.updateBooking(req.params.id, updateData);
   if (!booking) return res.status(404).json({ message: "Booking not found" });
