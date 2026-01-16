@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import React, { useState, useEffect, useMemo, useRef } from "react";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useApp } from "../../context/AppContext";
 import { useAuth } from "../../hooks/useAuth";
 import { Card, CardContent, CardHeader } from "../../components/ui/Card";
@@ -9,16 +9,35 @@ import { Modal } from "../../components/ui/Modal";
 import { Input } from "../../components/ui/Input";
 import { Select } from "../../components/ui/Select";
 import { Icon } from "../../components/ui/Icon";
-import { UploadedFile, Expense, Booking, DriverPayment, DriverFinancePayment } from "../../types";
-import { formatDateFull, formatDateTimeFull, formatDateTimeLocale, formatDateLocale } from "../../utils/dateHelpers";
-import { bookingAPI, vehicleCategoryAPI, VehicleCategoryDTO } from "../../services/api";
+import {
+  UploadedFile,
+  Expense,
+  Booking,
+  DriverPayment,
+  DriverFinancePayment,
+} from "../../types";
+import {
+  formatDateFull,
+  formatDateTimeFull,
+  formatDateTimeLocale,
+  formatDateLocale,
+} from "../../utils/dateHelpers";
+import {
+  bookingAPI,
+  vehicleCategoryAPI,
+  VehicleCategoryDTO,
+} from "../../services/api";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
 
 // Helper functions for driver payment calculations (similar to DriverReport.tsx)
-const isTripSettlementPayment = (payment: DriverPayment | DriverFinancePayment) => {
+const isTripSettlementPayment = (
+  payment: DriverPayment | DriverFinancePayment
+) => {
   const description = payment.description?.toLowerCase() || "";
-  return description.includes("final payment") || description.includes("refund");
+  return (
+    description.includes("final payment") || description.includes("refund")
+  );
 };
 
 const sumOperationalDriverPayments = (payments: DriverPayment[]) =>
@@ -38,6 +57,7 @@ const getNetSettlementAmount = (payments: DriverPayment[]) =>
 export const BookingDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const {
     bookings,
     updateBooking,
@@ -49,20 +69,28 @@ export const BookingDetails: React.FC = () => {
     vehicles,
   } = useApp();
   const { hasRole } = useAuth();
+  const prevPathnameRef = useRef<string | null>(null);
 
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [editingPayment, setEditingPayment] = useState<Booking["payments"] extends (infer T)[] ? T | null : any>(null);
+  const [editingPayment, setEditingPayment] =
+    useState<Booking["payments"] extends (infer T)[] ? T | null : any>(null);
   const [showDriverPaymentModal, setShowDriverPaymentModal] = useState(false);
   const [driverPayments, setDriverPayments] = useState<DriverPayment[]>([]);
   const [editingDriverPayment, setEditingDriverPayment] =
     useState<DriverPayment | null>(null);
   const [exporting, setExporting] = useState(false);
-  const [vehicleCategories, setVehicleCategories] = useState<VehicleCategoryDTO[]>([]);
-  const [viewingFile, setViewingFile] = useState<{ url: string; name: string; type: string } | null>(null);
+  const [vehicleCategories, setVehicleCategories] = useState<
+    VehicleCategoryDTO[]
+  >([]);
+  const [viewingFile, setViewingFile] = useState<{
+    url: string;
+    name: string;
+    type: string;
+  } | null>(null);
 
   const booking = bookings.find((b) => b.id === id);
 
@@ -74,26 +102,46 @@ export const BookingDetails: React.FC = () => {
       .catch(() => setVehicleCategories([]));
   }, []);
 
-  // If booking exists but has driverId/vehicleId and we haven't loaded those entities yet, try a one-time direct fetch to ensure latest state
+  // Refresh booking data when component mounts or when navigating back from edit page
   useEffect(() => {
     (async () => {
       if (!id) return;
-      if (!booking) return;
+
+      // Check if we're navigating back from edit page
+      const isNavigatingBack =
+        prevPathnameRef.current?.includes("/edit") &&
+        location.pathname === `/bookings/${id}`;
+      const shouldRefresh = isNavigatingBack || !booking;
+
+      // Update the ref for next time (after checking)
+      prevPathnameRef.current = location.pathname;
+
+      // Only fetch if we're navigating back or booking doesn't exist yet
+      if (!shouldRefresh && booking) return;
+
       try {
+        // Refresh vehicle categories in case a new one was added
+        vehicleCategoryAPI
+          .list()
+          .then(setVehicleCategories)
+          .catch(() => {});
+
+        // Fetch fresh booking data from backend
         const fresh = await bookingAPI.get(id);
         updateBooking(id, fresh as unknown as Partial<Booking>);
+
         // Load driver payments
         const dp = await bookingAPI.listDriverPayments(id);
-        console.log('Driver payments received from backend:', dp);
+        console.log("Driver payments received from backend:", dp);
         setDriverPayments(dp as DriverPayment[]);
       } catch (error) {
-        console.error('Failed to load driver payments:', error);
+        console.error("Failed to load booking data:", error);
         // Set empty array on error so UI shows "No driver payments recorded"
         setDriverPayments([]);
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [id, location.pathname]);
 
   interface ExpenseForm {
     type: Expense["type"];
@@ -234,12 +282,8 @@ export const BookingDetails: React.FC = () => {
     : null;
 
   const vehicleCategoryLabel = useMemo(() => {
-    if (vehicle?.category) {
-      return vehicle.categoryDescription
-        ? `${vehicle.category} - ${vehicle.categoryDescription}`
-        : vehicle.category;
-    }
-
+    // Prioritize booking's vehicleCategoryId over vehicle's category
+    // because booking.vehicleCategoryId is explicitly set on the booking
     if (booking.vehicleCategoryId) {
       const category = vehicleCategories.find(
         (c) => c.id === booking.vehicleCategoryId
@@ -251,6 +295,13 @@ export const BookingDetails: React.FC = () => {
       }
     }
 
+    // Fall back to vehicle's category if no booking category is set
+    if (vehicle?.category) {
+      return vehicle.categoryDescription
+        ? `${vehicle.category} - ${vehicle.categoryDescription}`
+        : vehicle.category;
+    }
+
     return "Not assigned";
   }, [vehicle, booking.vehicleCategoryId, vehicleCategories]);
 
@@ -258,11 +309,15 @@ export const BookingDetails: React.FC = () => {
     try {
       let updated;
       if (editingExpense) {
-        updated = await bookingAPI.updateExpense(booking.id, editingExpense.id, {
-          type: data.type,
-          amount: parseFloat(data.amount),
-          description: data.description,
-        });
+        updated = await bookingAPI.updateExpense(
+          booking.id,
+          editingExpense.id,
+          {
+            type: data.type,
+            amount: parseFloat(data.amount),
+            description: data.description,
+          }
+        );
       } else {
         updated = await bookingAPI.addExpense(booking.id, {
           type: data.type,
@@ -271,12 +326,18 @@ export const BookingDetails: React.FC = () => {
         });
       }
       updateBooking(booking.id, updated as unknown as Partial<Booking>);
-      toast.success(editingExpense ? "Expense updated successfully" : "Expense added successfully");
+      toast.success(
+        editingExpense
+          ? "Expense updated successfully"
+          : "Expense added successfully"
+      );
       setShowExpenseModal(false);
       resetExpense();
       setEditingExpense(null);
     } catch {
-      toast.error(editingExpense ? "Failed to update expense" : "Failed to add expense");
+      toast.error(
+        editingExpense ? "Failed to update expense" : "Failed to add expense"
+      );
     }
   };
 
@@ -343,12 +404,16 @@ export const BookingDetails: React.FC = () => {
     try {
       let updated;
       if (editingPayment) {
-        updated = await bookingAPI.updatePayment(booking.id, editingPayment.id, {
-          amount: parseFloat(data.amount),
-          comments: data.comments,
-          collectedBy: data.collectedBy,
-          paidOn: data.paidOn,
-        });
+        updated = await bookingAPI.updatePayment(
+          booking.id,
+          editingPayment.id,
+          {
+            amount: parseFloat(data.amount),
+            comments: data.comments,
+            collectedBy: data.collectedBy,
+            paidOn: data.paidOn,
+          }
+        );
       } else {
         updated = await bookingAPI.addPayment(booking.id, {
           amount: parseFloat(data.amount),
@@ -365,18 +430,20 @@ export const BookingDetails: React.FC = () => {
       // Restore default collectedBy for next time
       if (driver) setValuePayment("collectedBy", driver.name);
     } catch {
-      toast.error(editingPayment ? "Failed to update payment" : "Failed to record payment");
+      toast.error(
+        editingPayment ? "Failed to update payment" : "Failed to record payment"
+      );
     }
   };
 
   const onDeletePayment = async (paymentId: string) => {
-    if (!confirm('Delete this payment?')) return;
+    if (!confirm("Delete this payment?")) return;
     try {
       const updated = await bookingAPI.deletePayment(booking.id, paymentId);
       updateBooking(booking.id, updated as unknown as Partial<Booking>);
-      toast.success('Payment deleted');
+      toast.success("Payment deleted");
     } catch {
-      toast.error('Failed to delete payment');
+      toast.error("Failed to delete payment");
     }
   };
 
@@ -390,7 +457,7 @@ export const BookingDetails: React.FC = () => {
       updateBooking(booking.id, updated as unknown as Partial<Booking>);
       toast.success("Duty slip(s) uploaded");
     } catch (error) {
-      console.error('Upload error:', error);
+      console.error("Upload error:", error);
       toast.error("Upload failed");
     } finally {
       setUploading(false);
@@ -402,7 +469,8 @@ export const BookingDetails: React.FC = () => {
     if (!confirm("Remove this duty slip?")) return;
     try {
       // Check if file has a path property (backend file) - it might be in the file object or as a string
-      const filePath = (file as any).path || (typeof file === 'string' ? file : null);
+      const filePath =
+        (file as any).path || (typeof file === "string" ? file : null);
       if (filePath) {
         const updated = await bookingAPI.removeDutySlip(booking.id, filePath);
         updateBooking(booking.id, updated as unknown as Partial<Booking>);
@@ -410,7 +478,9 @@ export const BookingDetails: React.FC = () => {
       } else {
         // Legacy: local file removal
         updateBooking(booking.id, {
-          dutySlips: (booking.dutySlips || []).filter((f) => (f as any).id !== (file as any).id),
+          dutySlips: (booking.dutySlips || []).filter(
+            (f) => (f as any).id !== (file as any).id
+          ),
         });
         toast.success("Duty slip removed");
       }
@@ -424,10 +494,13 @@ export const BookingDetails: React.FC = () => {
     const filePath = (file as any).path;
     if (filePath) {
       // API URL may be like http://localhost:3000/api – strip trailing /api for static files
-      const apiBase = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
+      const apiBase =
+        import.meta.env.VITE_API_URL || "http://localhost:3000/api";
       const rootBase = apiBase.replace(/\/api\/?$/, "");
       // Ensure filePath doesn't already start with uploads/
-      const cleanPath = filePath.startsWith('uploads/') ? filePath.replace(/^uploads\//, '') : filePath;
+      const cleanPath = filePath.startsWith("uploads/")
+        ? filePath.replace(/^uploads\//, "")
+        : filePath;
       const url = `${rootBase}/uploads/${cleanPath}`;
       return url;
     }
@@ -437,8 +510,11 @@ export const BookingDetails: React.FC = () => {
 
   const handleFileClick = (file: UploadedFile) => {
     const url = getFileUrl(file);
-    const fileName = (file as any).name || (file as any).description || "Duty Slip";
-    const fileType = (file as any).type || (fileName?.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
+    const fileName =
+      (file as any).name || (file as any).description || "Duty Slip";
+    const fileType =
+      (file as any).type ||
+      (fileName?.endsWith(".pdf") ? "application/pdf" : "image/jpeg");
     setViewingFile({
       url,
       name: fileName,
@@ -466,20 +542,22 @@ export const BookingDetails: React.FC = () => {
   const expense = totalExpenses || 0;
   const oil = totalOilAmount || 0;
 
-  let amountPayable = (expense + oil) - (advance + onduty);
+  let amountPayable = expense + oil - (advance + onduty);
   if (amountPayable === 0) amountPayable = 0;
-  
+
   // Subtract net settlement to get remaining payable
   const displayAmountPayable = amountPayable - netSettlement;
 
   // Calculate driver received (from settlement payments or finalPaid)
   const driverReceived = hasSettlementEntries
     ? netSettlement
-    : (booking.finalPaid || 0);
+    : booking.finalPaid || 0;
 
   // Calculate total driver payments for display (all payments including settlement)
-  const totalDriverPayments = driverPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
-  
+  const totalDriverPayments = driverPayments.reduce(
+    (sum, p) => sum + (p.amount || 0),
+    0
+  );
 
   return (
     <div className="space-y-6">
@@ -598,15 +676,17 @@ export const BookingDetails: React.FC = () => {
               </div>
 
               {/* Advance Reason */}
-                <div className="flex items-start space-x-3 p-3 bg-amber-50 border border-amber-200 rounded-md">
-                  <Icon name="file" className="h-5 w-5 text-amber-600 mt-0.5" />
-                  <div className="flex-1">
-                    <p className="font-medium text-amber-900">Advance Reason</p>
-                    <p className="text-sm text-amber-700 mt-1">
-                    {booking.advanceReason?.trim() ? booking.advanceReason : "No reason added"}
-                    </p>
-                  </div>
+              <div className="flex items-start space-x-3 p-3 bg-amber-50 border border-amber-200 rounded-md">
+                <Icon name="file" className="h-5 w-5 text-amber-600 mt-0.5" />
+                <div className="flex-1">
+                  <p className="font-medium text-amber-900">Advance Reason</p>
+                  <p className="text-sm text-amber-700 mt-1">
+                    {booking.advanceReason?.trim()
+                      ? booking.advanceReason
+                      : "No reason added"}
+                  </p>
                 </div>
+              </div>
             </CardContent>
           </Card>
 
@@ -622,7 +702,11 @@ export const BookingDetails: React.FC = () => {
                   <div>
                     <p className="font-medium">Driver</p>
                     <p className="text-sm text-gray-600">
-                      {booking.status === "canceled" ? "Not assigned" : (driver ? driver.name : "Not assigned")}
+                      {booking.status === "canceled"
+                        ? "Not assigned"
+                        : driver
+                        ? driver.name
+                        : "Not assigned"}
                     </p>
                     {driver && booking.status !== "canceled" && (
                       <p className="text-xs text-gray-500">{driver.phone}</p>
@@ -635,7 +719,11 @@ export const BookingDetails: React.FC = () => {
                   <div>
                     <p className="font-medium">Vehicle</p>
                     <p className="text-sm text-gray-600">
-                      {booking.status === "canceled" ? "Not assigned" : (vehicle ? vehicle.registrationNumber : "Not assigned")}
+                      {booking.status === "canceled"
+                        ? "Not assigned"
+                        : vehicle
+                        ? vehicle.registrationNumber
+                        : "Not assigned"}
                     </p>
                     {vehicle && booking.status !== "canceled" && (
                       <p className="text-xs text-gray-500 capitalize">
@@ -653,7 +741,9 @@ export const BookingDetails: React.FC = () => {
                   <div>
                     <p className="font-medium">Vehicle Category</p>
                     <p className="text-sm text-gray-600">
-                      {booking.status === "canceled" ? "Not assigned" : vehicleCategoryLabel}
+                      {booking.status === "canceled"
+                        ? "Not assigned"
+                        : vehicleCategoryLabel}
                     </p>
                   </div>
                 </div>
@@ -748,17 +838,19 @@ export const BookingDetails: React.FC = () => {
           <Card>
             <CardHeader>
               <div className="flex justify-between items-center">
-                <h3 className="text-lg font-medium text-gray-900">On Duty Payments</h3>
+                <h3 className="text-lg font-medium text-gray-900">
+                  On Duty Payments
+                </h3>
                 {hasRole(["admin", "accountant", "dispatcher"]) &&
                   !hasRole(["driver"]) && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setShowPaymentModal(true)}
-                  >
-                    <Icon name="plus" className="h-4 w-4 mr-1" /> Add Payment
-                  </Button>
-                )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setShowPaymentModal(true)}
+                    >
+                      <Icon name="plus" className="h-4 w-4 mr-1" /> Add Payment
+                    </Button>
+                  )}
               </div>
             </CardHeader>
             <CardContent>
@@ -781,7 +873,9 @@ export const BookingDetails: React.FC = () => {
                       </div>
                       <div className="flex items-center space-x-2">
                         <div className="text-right text-xs text-gray-500 mr-1">
-                          {p.collectedBy && <p>Collected by: {p.collectedBy}</p>}
+                          {p.collectedBy && (
+                            <p>Collected by: {p.collectedBy}</p>
+                          )}
                           <p>Paid on: {p.paidOn}</p>
                         </div>
                         {hasRole(["admin", "accountant", "dispatcher"]) && (
@@ -795,12 +889,15 @@ export const BookingDetails: React.FC = () => {
                               onClick={() => {
                                 setEditingPayment(p as any);
                                 setShowPaymentModal(true);
-                                setValuePayment('amount', String(p.amount));
-                                setValuePayment('comments', p.comments || '');
-                                setValuePayment('collectedBy', p.collectedBy || '');
+                                setValuePayment("amount", String(p.amount));
+                                setValuePayment("comments", p.comments || "");
+                                setValuePayment(
+                                  "collectedBy",
+                                  p.collectedBy || ""
+                                );
                                 // paidOn comes as ISO string; keep just date for input
-                                const d = (p.paidOn || '').slice(0, 10);
-                                setValuePayment('paidOn', d);
+                                const d = (p.paidOn || "").slice(0, 10);
+                                setValuePayment("paidOn", d);
                               }}
                             >
                               <Icon name="edit" className="h-4 w-4" />
@@ -836,20 +933,19 @@ export const BookingDetails: React.FC = () => {
                   {driver &&
                     hasRole(["admin", "accountant", "dispatcher"]) &&
                     !hasRole(["driver"]) && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        setEditingDriverPayment(null);
-                        resetDriverPay({ mode: "per-trip" });
-                        setShowDriverPaymentModal(true);
-                      }}
-                    >
-                      <Icon name="plus" className="h-4 w-4 mr-1" /> Add
-                    </Button>
-                  )}
-                  {driverPayments.length > 0 &&
-                    !hasRole(["driver"]) && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setEditingDriverPayment(null);
+                          resetDriverPay({ mode: "per-trip" });
+                          setShowDriverPaymentModal(true);
+                        }}
+                      >
+                        <Icon name="plus" className="h-4 w-4 mr-1" /> Add
+                      </Button>
+                    )}
+                  {driverPayments.length > 0 && !hasRole(["driver"]) && (
                     <Button
                       size="sm"
                       variant="outline"
@@ -929,7 +1025,7 @@ export const BookingDetails: React.FC = () => {
                       )}
                     </div>
                   )} */}
-                  
+
                   {driverPayments.map((p) => (
                     <div
                       key={p.id}
@@ -958,7 +1054,9 @@ export const BookingDetails: React.FC = () => {
                           )}
                           {p.mode === "fuel-basis" && (
                             <p className="text-xs text-gray-500">
-                              Fuel: {Math.round((p.fuelQuantity || 0) * 100) / 100}L @ ₹{p.fuelRate} = ₹
+                              Fuel:{" "}
+                              {Math.round((p.fuelQuantity || 0) * 100) / 100}L @
+                              ₹{p.fuelRate} = ₹
                               {Math.round((p.computedAmount || 0) * 100) / 100}
                             </p>
                           )}
@@ -1109,33 +1207,41 @@ export const BookingDetails: React.FC = () => {
               <div className="flex justify-between">
                 <span className="text-gray-600">Expenses</span>
                 <span className="font-medium">
-                  ₹{(totalExpenses + totalOilAmount).toLocaleString(undefined, {
+                  ₹
+                  {(totalExpenses + totalOilAmount).toLocaleString(undefined, {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
                   })}
                 </span>
               </div>
               <div className="border-t pt-2 flex justify-between font-semibold">
-                <span >Driver Received</span>
+                <span>Driver Received</span>
                 <span className="font-medium">
-                  ₹{driverReceived.toLocaleString(undefined, {
+                  ₹
+                  {driverReceived.toLocaleString(undefined, {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
                   })}
                 </span>
               </div>
               <div className="flex justify-between items-center font-semibold">
-                <span>Balance {booking.settled && (
+                <span>
+                  Balance{" "}
+                  {booking.settled && (
                     <Badge variant="completed" className="text-xs">
                       Settled
                     </Badge>
-                  )}</span>
-                
+                  )}
+                </span>
+
                 <div className="flex items-center gap-2">
-                  <span>₹{displayAmountPayable.toLocaleString(undefined, {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}</span>
+                  <span>
+                    ₹
+                    {displayAmountPayable.toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  </span>
                 </div>
               </div>
               <div className="flex justify-between items-center">
@@ -1149,221 +1255,244 @@ export const BookingDetails: React.FC = () => {
 
           {/* Quick Actions */}
           {hasRole(["admin", "dispatcher", "driver"]) && (
-          <Card>
-            <CardHeader>
-              <h3 className="text-lg font-medium text-gray-900">Actions</h3>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {hasRole(["admin", "dispatcher"]) && (
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => setShowStatusModal(true)}
-                >
-                  Update Status
-                </Button>
-              )}
-
-              {hasRole(["admin", "accountant"]) && (
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={toggleBilled}
-                >
-                  Mark as {booking.billed ? "Not Billed" : "Billed"}
-                </Button>
-              )}
-
-              {hasRole(["admin", "accountant"]) && (
-                <div className="flex items-center justify-between w-full">
-                  <label
-                    htmlFor="Dutyslip-toggle"
-                    className="text-sm font-medium"
+            <Card>
+              <CardHeader>
+                <h3 className="text-lg font-medium text-gray-900">Actions</h3>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {hasRole(["admin", "dispatcher"]) && (
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => setShowStatusModal(true)}
                   >
-                    Dutyslip submitted.
-                  </label>
+                    Update Status
+                  </Button>
+                )}
 
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      id="Dutyslip-toggle"
-                      checked={booking.dutySlipSubmitted}
-                      onChange={toggleDutySlipStatus}
-                      className="sr-only peer"
-                    />
-                    <div
-                      className="w-16 h-8 flex items-center justify-between px-1 rounded-full 
-                   bg-gray-300 peer-checked:bg-amber-500 transition-all duration-300"
+                {hasRole(["admin", "accountant"]) && (
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={toggleBilled}
+                  >
+                    Mark as {booking.billed ? "Not Billed" : "Billed"}
+                  </Button>
+                )}
+
+                {hasRole(["admin", "accountant"]) && (
+                  <div className="flex items-center justify-between w-full">
+                    <label
+                      htmlFor="Dutyslip-toggle"
+                      className="text-sm font-medium"
                     >
-                      <span
-                        className={`text-sm font-semibold text-white transition-all duration-200 
+                      Dutyslip submitted.
+                    </label>
+
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        id="Dutyslip-toggle"
+                        checked={booking.dutySlipSubmitted}
+                        onChange={toggleDutySlipStatus}
+                        className="sr-only peer"
+                      />
+                      <div
+                        className="w-16 h-8 flex items-center justify-between px-1 rounded-full 
+                   bg-gray-300 peer-checked:bg-amber-500 transition-all duration-300"
+                      >
+                        <span
+                          className={`text-sm font-semibold text-white transition-all duration-200 
                      ${
                        booking.dutySlipSubmitted ? "opacity-100" : "opacity-0"
                      }`}
-                      >
-                        YES
-                      </span>
-                      <span
-                        className={`text-sm font-semibold text-white transition-all duration-200 
+                        >
+                          YES
+                        </span>
+                        <span
+                          className={`text-sm font-semibold text-white transition-all duration-200 
                      ${
                        booking.dutySlipSubmitted ? "opacity-0" : "opacity-100"
                      }`}
-                      >
-                        NO
-                      </span>
-                    </div>
-                    <span
-                      className="absolute left-1 top-1 w-6 h-6 bg-white rounded-full 
-                   transition-transform duration-300 peer-checked:translate-x-8"
-                    ></span>
-                  </label>
-                </div>
-              )}
-
-              {hasRole(["admin", "accountant"]) && (
-                <div className="flex items-center justify-between w-full">
-                  <label
-                    htmlFor="DutyslipCompany-toggle"
-                    className="text-sm font-medium"
-                  >
-                    Dutyslip submitted to company
-                  </label>
-
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      id="DutyslipCompany-toggle"
-                      checked={booking.dutySlipSubmittedToCompany}
-                      onChange={toggleDutySlipToCompanyStatus}
-                      className="sr-only peer"
-                    />
-                    <div
-                      className="w-16 h-8 flex items-center justify-between px-1 rounded-full 
-                   bg-gray-300 peer-checked:bg-amber-500 transition-all duration-300"
-                    >
+                        >
+                          NO
+                        </span>
+                      </div>
                       <span
-                        className={`text-sm font-semibold text-white transition-all duration-200 
+                        className="absolute left-1 top-1 w-6 h-6 bg-white rounded-full 
+                   transition-transform duration-300 peer-checked:translate-x-8"
+                      ></span>
+                    </label>
+                  </div>
+                )}
+
+                {hasRole(["admin", "accountant"]) && (
+                  <div className="flex items-center justify-between w-full">
+                    <label
+                      htmlFor="DutyslipCompany-toggle"
+                      className="text-sm font-medium"
+                    >
+                      Dutyslip submitted to company
+                    </label>
+
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        id="DutyslipCompany-toggle"
+                        checked={booking.dutySlipSubmittedToCompany}
+                        onChange={toggleDutySlipToCompanyStatus}
+                        className="sr-only peer"
+                      />
+                      <div
+                        className="w-16 h-8 flex items-center justify-between px-1 rounded-full 
+                   bg-gray-300 peer-checked:bg-amber-500 transition-all duration-300"
+                      >
+                        <span
+                          className={`text-sm font-semibold text-white transition-all duration-200 
                      ${
                        booking.dutySlipSubmittedToCompany
                          ? "opacity-100"
                          : "opacity-0"
                      }`}
-                      >
-                        YES
-                      </span>
-                      <span
-                        className={`text-sm font-semibold text-white transition-all duration-200 
+                        >
+                          YES
+                        </span>
+                        <span
+                          className={`text-sm font-semibold text-white transition-all duration-200 
                      ${
                        booking.dutySlipSubmittedToCompany
                          ? "opacity-0"
                          : "opacity-100"
                      }`}
-                      >
-                        NO
-                      </span>
-                    </div>
-                    <span
-                      className="absolute left-1 top-1 w-6 h-6 bg-white rounded-full 
+                        >
+                          NO
+                        </span>
+                      </div>
+                      <span
+                        className="absolute left-1 top-1 w-6 h-6 bg-white rounded-full 
                    transition-transform duration-300 peer-checked:translate-x-8"
-                    ></span>
-                  </label>
-                </div>
-              )}
-
-              {booking.status === "completed" && (
-                <div className="space-y-2">
-                  {hasRole(["admin", "dispatcher"]) && (
-                    <label className="w-full flex items-center justify-center px-3 py-2 border border-dashed border-amber-400 rounded-md text-sm cursor-pointer hover:bg-amber-50 transition">
-                      <Icon
-                        name="upload"
-                        className="h-4 w-4 mr-2 text-amber-600"
-                      />
-                      {uploading ? "Uploading..." : "Upload Duty Slip(s)"}
-                      <input
-                        type="file"
-                        multiple
-                        accept="image/*,application/pdf"
-                        onChange={onDutySlipUpload}
-                        className="hidden"
-                      />
+                      ></span>
                     </label>
-                  )}
-                  {booking.dutySlips && booking.dutySlips.length > 0 && (
-                    <div className="space-y-2 max-h-96 overflow-auto">
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                        {booking.dutySlips.map((file, index) => {
-                          const fileUrl = getFileUrl(file);
-                          const fileObj = file as any;
-                          const fileName = fileObj.name || fileObj.description || 'Duty Slip';
-                          const fileType = fileObj.type || '';
-                          const isImage = fileType?.startsWith('image/') || fileName?.match(/\.(jpg|jpeg|png|gif|webp)$/i);
-                          const isPdf = fileType === 'application/pdf' || fileName?.endsWith('.pdf');
-                          const fileId = fileObj.id || fileObj._id || `file-${index}`;
-                          
-                          return (
-                            <div
-                              key={fileId}
-                              className="relative group bg-gray-50 rounded-lg overflow-hidden border border-gray-200 hover:border-amber-400 transition cursor-pointer"
-                              onClick={() => handleFileClick(file)}
-                            >
-                              {isImage ? (
-                                <img
-                                  src={fileUrl}
-                                  alt={fileName}
-                                  className="w-full h-32 object-cover"
-                                  onError={(e) => {
-                                    // Fallback if image fails to load
-                                    (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect fill="%23ddd" width="100" height="100"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="14" dy="10.5" font-weight="bold" x="50%" y="50%" text-anchor="middle"%3EImage%3C/text%3E%3C/svg%3E';
-                                  }}
-                                />
-                              ) : isPdf ? (
-                                <div className="w-full h-32 flex items-center justify-center bg-red-50">
-                                  <div className="text-center">
-                                    <Icon name="file" className="h-8 w-8 text-red-600 mx-auto mb-1" />
-                                    <p className="text-xs text-red-700 font-medium">PDF</p>
+                  </div>
+                )}
+
+                {booking.status === "completed" && (
+                  <div className="space-y-2">
+                    {hasRole(["admin", "dispatcher"]) && (
+                      <label className="w-full flex items-center justify-center px-3 py-2 border border-dashed border-amber-400 rounded-md text-sm cursor-pointer hover:bg-amber-50 transition">
+                        <Icon
+                          name="upload"
+                          className="h-4 w-4 mr-2 text-amber-600"
+                        />
+                        {uploading ? "Uploading..." : "Upload Duty Slip(s)"}
+                        <input
+                          type="file"
+                          multiple
+                          accept="image/*,application/pdf"
+                          onChange={onDutySlipUpload}
+                          className="hidden"
+                        />
+                      </label>
+                    )}
+                    {booking.dutySlips && booking.dutySlips.length > 0 && (
+                      <div className="space-y-2 max-h-96 overflow-auto">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                          {booking.dutySlips.map((file, index) => {
+                            const fileUrl = getFileUrl(file);
+                            const fileObj = file as any;
+                            const fileName =
+                              fileObj.name ||
+                              fileObj.description ||
+                              "Duty Slip";
+                            const fileType = fileObj.type || "";
+                            const isImage =
+                              fileType?.startsWith("image/") ||
+                              fileName?.match(/\.(jpg|jpeg|png|gif|webp)$/i);
+                            const isPdf =
+                              fileType === "application/pdf" ||
+                              fileName?.endsWith(".pdf");
+                            const fileId =
+                              fileObj.id || fileObj._id || `file-${index}`;
+
+                            return (
+                              <div
+                                key={fileId}
+                                className="relative group bg-gray-50 rounded-lg overflow-hidden border border-gray-200 hover:border-amber-400 transition cursor-pointer"
+                                onClick={() => handleFileClick(file)}
+                              >
+                                {isImage ? (
+                                  <img
+                                    src={fileUrl}
+                                    alt={fileName}
+                                    className="w-full h-32 object-cover"
+                                    onError={(e) => {
+                                      // Fallback if image fails to load
+                                      (e.target as HTMLImageElement).src =
+                                        'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect fill="%23ddd" width="100" height="100"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="14" dy="10.5" font-weight="bold" x="50%" y="50%" text-anchor="middle"%3EImage%3C/text%3E%3C/svg%3E';
+                                    }}
+                                  />
+                                ) : isPdf ? (
+                                  <div className="w-full h-32 flex items-center justify-center bg-red-50">
+                                    <div className="text-center">
+                                      <Icon
+                                        name="file"
+                                        className="h-8 w-8 text-red-600 mx-auto mb-1"
+                                      />
+                                      <p className="text-xs text-red-700 font-medium">
+                                        PDF
+                                      </p>
+                                    </div>
                                   </div>
-                                </div>
-                              ) : (
-                                <div className="w-full h-32 flex items-center justify-center bg-gray-100">
-                                  <Icon name="file" className="h-8 w-8 text-gray-400" />
-                                </div>
-                              )}
-                              <div className="p-2 bg-white border-t">
-                                <p className="text-xs font-medium text-gray-700 truncate" title={fileName}>
-                                  {fileName}
-                                </p>
-                                {fileObj.size && (
-                                  <p className="text-xs text-gray-500">
-                                    {(fileObj.size / 1024).toFixed(1)} KB
+                                ) : (
+                                  <div className="w-full h-32 flex items-center justify-center bg-gray-100">
+                                    <Icon
+                                      name="file"
+                                      className="h-8 w-8 text-gray-400"
+                                    />
+                                  </div>
+                                )}
+                                <div className="p-2 bg-white border-t">
+                                  <p
+                                    className="text-xs font-medium text-gray-700 truncate"
+                                    title={fileName}
+                                  >
+                                    {fileName}
                                   </p>
+                                  {fileObj.size && (
+                                    <p className="text-xs text-gray-500">
+                                      {(fileObj.size / 1024).toFixed(1)} KB
+                                    </p>
+                                  )}
+                                </div>
+                                {hasRole(["admin", "dispatcher"]) && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      removeDutySlip(file);
+                                    }}
+                                    aria-label="Remove file"
+                                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition"
+                                  >
+                                    <Icon name="close" className="h-3 w-3" />
+                                  </button>
                                 )}
                               </div>
-                              {hasRole(["admin", "dispatcher"]) && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    removeDutySlip(file);
-                                  }}
-                                  aria-label="Remove file"
-                                  className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition"
-                                >
-                                  <Icon name="close" className="h-3 w-3" />
-                                </button>
-                              )}
-                            </div>
-                          );
-                        })}
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
-                  )}
-                  {(!booking.dutySlips || booking.dutySlips.length === 0) && hasRole(["driver"]) && (
-                    <p className="text-gray-500 text-sm text-center py-4">No duty slips uploaded yet</p>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-           )}
+                    )}
+                    {(!booking.dutySlips || booking.dutySlips.length === 0) &&
+                      hasRole(["driver"]) && (
+                        <p className="text-gray-500 text-sm text-center py-4">
+                          No duty slips uploaded yet
+                        </p>
+                      )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
 
@@ -1422,7 +1551,9 @@ export const BookingDetails: React.FC = () => {
             >
               Cancel
             </Button>
-            <Button type="submit">{editingExpense ? "Save" : "Add Expense"}</Button>
+            <Button type="submit">
+              {editingExpense ? "Save" : "Add Expense"}
+            </Button>
           </div>
         </form>
       </Modal>
@@ -1466,8 +1597,11 @@ export const BookingDetails: React.FC = () => {
       {/* Add Payment Modal */}
       <Modal
         isOpen={showPaymentModal}
-        onClose={() => { setShowPaymentModal(false); setEditingPayment(null); }}
-        title={editingPayment ? 'Edit Payment' : 'Add Payment'}
+        onClose={() => {
+          setShowPaymentModal(false);
+          setEditingPayment(null);
+        }}
+        title={editingPayment ? "Edit Payment" : "Add Payment"}
       >
         <form
           onSubmit={handlePaymentSubmit(onAddPayment)}
@@ -1506,7 +1640,9 @@ export const BookingDetails: React.FC = () => {
             >
               Cancel
             </Button>
-            <Button type="submit">{editingPayment ? 'Save' : 'Add Payment'}</Button>
+            <Button type="submit">
+              {editingPayment ? "Save" : "Add Payment"}
+            </Button>
           </div>
         </form>
       </Modal>
@@ -1516,19 +1652,21 @@ export const BookingDetails: React.FC = () => {
         isOpen={showDriverPaymentModal}
         onClose={() => setShowDriverPaymentModal(false)}
         title={
-          editingDriverPayment 
-            ? (editingDriverPayment.id === 'finalPaid' ? "Edit Final Payment" : "Edit Driver Payment")
+          editingDriverPayment
+            ? editingDriverPayment.id === "finalPaid"
+              ? "Edit Final Payment"
+              : "Edit Driver Payment"
             : "Add Driver Payment"
         }
       >
         <form
           onSubmit={handleDriverPaySubmit(async (data) => {
-            console.log('Form submitted with data:', data);
+            console.log("Form submitted with data:", data);
             if (!booking || !driver) return;
             try {
               if (editingDriverPayment) {
                 // Handle finalPaid editing
-                if (editingDriverPayment.id === 'finalPaid') {
+                if (editingDriverPayment.id === "finalPaid") {
                   const newAmount = parseFloat(data.amount || "0");
                   updateBooking(booking.id, { finalPaid: newAmount });
                   toast.success("Final payment updated");
@@ -1609,33 +1747,42 @@ export const BookingDetails: React.FC = () => {
                     payload.mileage = parseFloat(data.mileage);
                   }
                   // If both distanceKm and mileage are provided, calculate fuelQuantity
-                  if (payload.distanceKm !== undefined && payload.mileage !== undefined && payload.mileage > 0) {
-                    payload.fuelQuantity = Math.round((payload.distanceKm / payload.mileage) * 100) / 100;
+                  if (
+                    payload.distanceKm !== undefined &&
+                    payload.mileage !== undefined &&
+                    payload.mileage > 0
+                  ) {
+                    payload.fuelQuantity =
+                      Math.round((payload.distanceKm / payload.mileage) * 100) /
+                      100;
                   } else if (data.fuelQuantity) {
                     // If distanceKm/mileage not provided, use explicit fuelQuantity
                     payload.fuelQuantity = parseFloat(data.fuelQuantity || "0");
                   }
                   if (data.fuelRate)
                     payload.fuelRate = parseFloat(data.fuelRate || "0");
-                  
+
                   // Calculate amount for fuel-basis
                   if (payload.fuelQuantity && payload.fuelRate) {
-                    payload.amount = Math.round((payload.fuelQuantity * payload.fuelRate) * 100) / 100;
-                    console.log('Fuel-basis calculation:', {
+                    payload.amount =
+                      Math.round(
+                        payload.fuelQuantity * payload.fuelRate * 100
+                      ) / 100;
+                    console.log("Fuel-basis calculation:", {
                       fuelQuantity: payload.fuelQuantity,
                       fuelRate: payload.fuelRate,
-                      calculatedAmount: payload.amount
+                      calculatedAmount: payload.amount,
                     });
                   }
                 } else {
                   payload.amount = parseFloat(data.amount || "0");
                 }
-                console.log('Final payload before API call:', payload);
+                console.log("Final payload before API call:", payload);
                 const created = await bookingAPI.addDriverPayment(
                   booking.id,
                   payload
                 );
-                console.log('Created driver payment response:', created);
+                console.log("Created driver payment response:", created);
                 setDriverPayments([
                   created as DriverPayment,
                   ...driverPayments,
@@ -1676,7 +1823,10 @@ export const BookingDetails: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <Input
                   {...registerDriverPay("distanceKm", {
-                    min: { value: 0.1, message: "Distance must be greater than 0" }
+                    min: {
+                      value: 0.1,
+                      message: "Distance must be greater than 0",
+                    },
                   })}
                   type="number"
                   step="0.1"
@@ -1685,7 +1835,10 @@ export const BookingDetails: React.FC = () => {
                 />
                 <Input
                   {...registerDriverPay("mileage", {
-                    min: { value: 0.1, message: "Mileage must be greater than 0" }
+                    min: {
+                      value: 0.1,
+                      message: "Mileage must be greater than 0",
+                    },
                   })}
                   type="number"
                   step="0.1"
@@ -1704,7 +1857,10 @@ export const BookingDetails: React.FC = () => {
                 <Input
                   {...registerDriverPay("fuelRate", {
                     required: "Rate required",
-                    min: { value: 0.01, message: "Rate must be greater than 0" }
+                    min: {
+                      value: 0.01,
+                      message: "Rate must be greater than 0",
+                    },
                   })}
                   type="number"
                   step="0.01"
@@ -1771,10 +1927,10 @@ export const BookingDetails: React.FC = () => {
               <Button
                 variant="outline"
                 onClick={() => {
-                  const link = document.createElement('a');
+                  const link = document.createElement("a");
                   link.href = viewingFile.url;
                   link.download = viewingFile.name;
-                  link.target = '_blank';
+                  link.target = "_blank";
                   link.click();
                 }}
               >
@@ -1783,20 +1939,25 @@ export const BookingDetails: React.FC = () => {
               </Button>
             </div>
             <div className="max-h-[70vh] overflow-auto border rounded-lg bg-gray-50">
-              {viewingFile.type === 'application/pdf' || viewingFile.url.endsWith('.pdf') ? (
+              {viewingFile.type === "application/pdf" ||
+              viewingFile.url.endsWith(".pdf") ? (
                 <div className="w-full h-[70vh] flex flex-col">
                   <embed
                     src={`${viewingFile.url}#toolbar=1`}
                     type="application/pdf"
                     className="flex-1 w-full"
-                    style={{ minHeight: '500px' }}
+                    style={{ minHeight: "500px" }}
                   />
                   <div className="p-2 bg-gray-100 border-t flex justify-center">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => {
-                        window.open(viewingFile.url, '_blank', 'noopener,noreferrer');
+                        window.open(
+                          viewingFile.url,
+                          "_blank",
+                          "noopener,noreferrer"
+                        );
                       }}
                     >
                       <Icon name="file" className="h-4 w-4 mr-2" />
@@ -1810,7 +1971,8 @@ export const BookingDetails: React.FC = () => {
                   alt={viewingFile.name}
                   className="w-full h-auto"
                   onError={(e) => {
-                    (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect fill="%23ddd" width="400" height="300"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="18" dy="10.5" font-weight="bold" x="50%" y="50%" text-anchor="middle"%3EImage not available%3C/text%3E%3C/svg%3E';
+                    (e.target as HTMLImageElement).src =
+                      'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect fill="%23ddd" width="400" height="300"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="18" dy="10.5" font-weight="bold" x="50%" y="50%" text-anchor="middle"%3EImage not available%3C/text%3E%3C/svg%3E';
                   }}
                 />
               )}
