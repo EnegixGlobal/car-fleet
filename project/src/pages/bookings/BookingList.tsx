@@ -158,12 +158,39 @@ export const BookingList: React.FC = () => {
     {
       key: 'startDate' as keyof Booking,
       header: 'Date & Time',
-      render: (booking: Booking) => (
-        <div>
-          <div className="text-sm">{formatDate(booking.startDate)}</div>
-          <div className="text-xs text-gray-500">{formatTime(booking.startDate)}</div>
-        </div>
-      )
+      render: (booking: Booking) => {
+        const hasEndDate = booking.endDate && booking.endDate !== booking.startDate;
+        const isOneWayOrTransfer = booking.journeyType === 'outstation-one-way' || booking.journeyType === 'transfer';
+
+        return (
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0">
+              <div className="text-xs font-medium text-gray-600">Start</div>
+              <div className="text-xs text-gray-800">{formatDate(booking.startDate)}</div>
+              <div className="text-xs text-gray-500">{formatTime(booking.startDate)}</div>
+            </div>
+            {hasEndDate && (
+              <>
+                <span className="text-gray-300 mt-1">|</span>
+                <div className="flex-shrink-0">
+                  <div className="text-xs font-medium text-gray-600">End</div>
+                  <div className="text-xs text-gray-800">{formatDate(booking.endDate)}</div>
+                  <div className="text-xs text-gray-500">{formatTime(booking.endDate)}</div>
+                </div>
+              </>
+            )}
+            {!hasEndDate && isOneWayOrTransfer && (
+              <>
+                <span className="text-gray-300 mt-1">|</span>
+                <div className="flex-shrink-0">
+                  <div className="text-xs font-medium text-gray-600">End</div>
+                  <div className="text-xs text-gray-400 italic">One-way/Transfer</div>
+                </div>
+              </>
+            )}
+          </div>
+        );
+      }
     },
     {
       key: 'journeyType' as keyof Booking,
