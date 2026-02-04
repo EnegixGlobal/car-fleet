@@ -20,7 +20,7 @@ const bookingSchema = z.object({
   companyId: z.string().optional(),
   pickupLocation: z.string().min(1, 'Pickup location is required'),
   dropLocation: z.string().min(1, 'Drop location is required'),
-  journeyType: z.enum(['outstation-one-way','outstation','local-outstation','local','transfer']),
+  journeyType: z.enum(['outstation-one-way', 'outstation', 'local-outstation', 'local', 'transfer']),
   cityOfWork: z.string().optional(),
   startDate: z.string().min(1, 'Start date is required'),
   endDate: z.string().min(1, 'End date is required'),
@@ -44,6 +44,213 @@ const toISOFromLocalInput = (value: string) => {
   return date.toISOString();
 };
 
+// Searchable Select Component with Debouncing
+interface SearchableSelectOption {
+  value: string;
+  label: string;
+}
+
+interface SearchableSelectProps {
+  label?: string;
+  placeholder?: string;
+  options: SearchableSelectOption[];
+  value?: string;
+  onChange: (value: string) => void;
+  minSearchLength?: number;
+  debounceMs?: number;
+}
+
+const SearchableSelect: React.FC<SearchableSelectProps> = ({
+  label,
+  placeholder = 'Type to search...',
+  options,
+  value = '',
+  onChange,
+  minSearchLength = 3,
+  debounceMs = 300,
+}) => {
+  const [searchTerm, setSearchTerm] = React.useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = React.useState('');
+  const [isOpen, setIsOpen] = React.useState(false);
+  const [selectedOption, setSelectedOption] = React.useState<SearchableSelectOption | null>(null);
+  const inputRef = React.useRef<HTMLInputElement>(null);
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
+
+  // Initialize selected option from value prop
+  React.useEffect(() => {
+    if (value) {
+      const option = options.find(opt => opt.value === value);
+      if (option) {
+        setSelectedOption(option);
+        setSearchTerm(option.label);
+      }
+    } else {
+      setSelectedOption(null);
+      setSearchTerm('');
+    }
+  }, [value, options]);
+
+  // Debounce search term
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, debounceMs);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm, debounceMs]);
+
+  // Filter options based on debounced search term
+  const filteredOptions = React.useMemo(() => {
+    // If search term is empty or less than minSearchLength, show all options when dropdown is open
+    if (!debouncedSearchTerm || debouncedSearchTerm.length < minSearchLength) {
+      return isOpen ? options : [];
+    }
+
+    // Filter options when search term meets minimum length
+    const searchLower = debouncedSearchTerm.toLowerCase();
+    return options.filter(option =>
+      option.label.toLowerCase().includes(searchLower)
+    );
+  }, [debouncedSearchTerm, options, minSearchLength, isOpen]);
+
+  // Handle input change
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    setSearchTerm(newValue);
+
+    if (!newValue) {
+      setSelectedOption(null);
+      onChange('');
+      // Keep dropdown open when clearing, so user can see all options
+      setIsOpen(true);
+    } else {
+      // Always show dropdown when typing
+      setIsOpen(true);
+    }
+  };
+
+  // Handle option selection
+  const handleSelectOption = (option: SearchableSelectOption) => {
+    setSelectedOption(option);
+    setSearchTerm(option.label);
+    onChange(option.value);
+    setIsOpen(false);
+  };
+
+  // Handle clear
+  const handleClear = () => {
+    setSearchTerm('');
+    setSelectedOption(null);
+    onChange('');
+    setIsOpen(true); // Keep dropdown open to show all options
+    inputRef.current?.focus();
+  };
+
+  // Handle click outside
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node) &&
+        inputRef.current &&
+        !inputRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false);
+        // Reset search term to selected option label if an option is selected
+        if (selectedOption) {
+          setSearchTerm(selectedOption.label);
+        } else {
+          setSearchTerm('');
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [selectedOption]);
+
+  // Handle keyboard navigation
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Escape') {
+      setIsOpen(false);
+      if (selectedOption) {
+        setSearchTerm(selectedOption.label);
+      } else {
+        setSearchTerm('');
+      }
+    } else if (e.key === 'ArrowDown' && isOpen && filteredOptions.length > 0) {
+      e.preventDefault();
+      // Focus first option (could be enhanced with arrow key navigation)
+    }
+  };
+
+  return (
+    <div className="w-full relative">
+      {label && (
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          {label}
+        </label>
+      )}
+      <div className="relative">
+        <input
+          ref={inputRef}
+          type="text"
+          value={searchTerm}
+          onChange={handleInputChange}
+          onFocus={() => {
+            // Always show dropdown on focus, even without typing
+            setIsOpen(true);
+          }}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500 sm:text-sm pr-8"
+        />
+        <div className="absolute inset-y-0 right-0 flex items-center pr-2">
+          {searchTerm && (
+            <button
+              type="button"
+              onClick={handleClear}
+              className="text-gray-400 hover:text-gray-600 focus:outline-none"
+            >
+              <Icon name="close" className="h-4 w-4" />
+            </button>
+          )}
+          {!searchTerm && (
+            <Icon name="chevronDown" className="h-4 w-4 text-gray-400" />
+          )}
+        </div>
+      </div>
+
+      {isOpen && (
+        <div
+          ref={dropdownRef}
+          className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto"
+        >
+          {filteredOptions.length === 0 ? (
+            <div className="px-4 py-3 text-sm text-gray-500">
+              {!debouncedSearchTerm || debouncedSearchTerm.length < minSearchLength
+                ? `Type at least ${minSearchLength} characters to filter`
+                : 'No customers found'}
+            </div>
+          ) : (
+            <ul className="py-1">
+              {filteredOptions.map((option) => (
+                <li
+                  key={option.value}
+                  onClick={() => handleSelectOption(option)}
+                  className="px-4 py-2 text-sm text-gray-900 hover:bg-amber-50 cursor-pointer"
+                >
+                  {option.label}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const CreateBooking: React.FC = () => {
   const navigate = useNavigate();
   const { addBooking, drivers, vehicles, companies, customers } = useApp();
@@ -61,12 +268,13 @@ export const CreateBooking: React.FC = () => {
     const cleaned = raw
       .map(c => (c || '').trim())
       .filter(c => c && c.toLowerCase() !== 'select city')
-      .map(c => c.replace(/\s+/g,' '));
-    return Array.from(new Set(cleaned)).sort((a,b)=> a.localeCompare(b));
+      .map(c => c.replace(/\s+/g, ' '));
+    return Array.from(new Set(cleaned)).sort((a, b) => a.localeCompare(b));
   }, []);
   const [newCity, setNewCity] = React.useState('');
   const [cityModalOpen, setCityModalOpen] = React.useState(false);
   const [cityError, setCityError] = React.useState<string | null>(null);
+  const [selectedCustomerId, setSelectedCustomerId] = React.useState<string>('');
 
   const {
     register,
@@ -83,7 +291,7 @@ export const CreateBooking: React.FC = () => {
       vehicleCategoryId: '',
       vehicleId: undefined,
       driverId: undefined,
-  }
+    }
   });
 
   const bookingSource = watch('bookingSource');
@@ -157,15 +365,15 @@ export const CreateBooking: React.FC = () => {
   React.useEffect(() => {
     (async () => {
       try {
-    const list = await cityAPI.list();
-    const names = sanitizeCities(list.map(c => c.name));
-    setCities(names);
-    localStorage.setItem('bolt_cities', JSON.stringify(names));
+        const list = await cityAPI.list();
+        const names = sanitizeCities(list.map(c => c.name));
+        setCities(names);
+        localStorage.setItem('bolt_cities', JSON.stringify(names));
       } catch {
-    const saved = localStorage.getItem('bolt_cities');
-    const parsed = saved ? JSON.parse(saved) : [];
-    const cleaned = sanitizeCities(parsed);
-    setCities(cleaned);
+        const saved = localStorage.getItem('bolt_cities');
+        const parsed = saved ? JSON.parse(saved) : [];
+        const cleaned = sanitizeCities(parsed);
+        setCities(cleaned);
       }
     })();
   }, [sanitizeCities]);
@@ -200,7 +408,7 @@ export const CreateBooking: React.FC = () => {
   }));
 
   return (
-  <div className="space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center space-x-4">
         <Button
           variant="outline"
@@ -212,7 +420,7 @@ export const CreateBooking: React.FC = () => {
         <h1 className="text-3xl font-bold text-gray-900">Create New Booking</h1>
       </div>
 
-  <Card>
+      <Card>
         <CardHeader>
           <h2 className="text-xl font-semibold text-gray-900">Booking Details</h2>
         </CardHeader>
@@ -221,32 +429,28 @@ export const CreateBooking: React.FC = () => {
             {/* Customer Information */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Select Customer (Optional)</label>
-                <select
-                  aria-label="Select existing customer"
-                  className="w-full border-gray-300 rounded-md focus:ring-amber-500 focus:border-amber-500"
-                  // onChange={(e) => {
-                  //   const id = e.target.value;
-                  //   if (!id) {
-                  //     setValue('customerName', '');
-                  //     setValue('customerPhone', '');
-                  //     return;
-                  //   }
-                  //   const c = customers.find(cu => cu.id === id);
-                  //   if (c) {
-                  //     setValue('customerName', c.name, { shouldValidate: true });
-                  //     setValue('customerPhone', c.phone, { shouldValidate: true });
-                  //     if (c.companyId) {
-                  //       setValue('bookingSource', 'company');
-                  //       setValue('companyId', c.companyId);
-                  //     }
-                  //     (document.getElementById('selectedCustomerId') as HTMLInputElement).value = id;
-                  //   }
-                  // }}
-                  onChange={(e) => {
-                    const id = e.target.value;
-                  
-                    // If user selects "-- New / Manual --"
+                <SearchableSelect
+                  label="Select Customer (Optional)"
+                  placeholder="Type at least 3 characters to search..."
+                  options={customers.map(c => {
+                    const comp = companies.find(co => co.id === c.companyId);
+                    const companyLabel = comp ? comp.name : 'Individual';
+                    return {
+                      value: c.id,
+                      label: `${c.name} (${c.phone}) - ${companyLabel}`
+                    };
+                  })}
+                  value={selectedCustomerId}
+                  onChange={(id) => {
+                    setSelectedCustomerId(id);
+
+                    // Update hidden input
+                    const hiddenInput = document.getElementById('selectedCustomerId') as HTMLInputElement;
+                    if (hiddenInput) {
+                      hiddenInput.value = id;
+                    }
+
+                    // If user clears selection
                     if (!id) {
                       setValue('customerName', '');
                       setValue('customerPhone', '');
@@ -254,13 +458,13 @@ export const CreateBooking: React.FC = () => {
                       setValue('companyId', undefined);
                       return;
                     }
-                  
+
                     const c = customers.find(cu => cu.id === id);
-                  
+
                     if (c) {
                       setValue('customerName', c.name, { shouldValidate: true });
                       setValue('customerPhone', c.phone, { shouldValidate: true });
-                  
+
                       if (c.companyId) {
                         // Customer belongs to a company/agency
                         setValue('bookingSource', 'company');
@@ -270,25 +474,12 @@ export const CreateBooking: React.FC = () => {
                         setValue('bookingSource', 'individual');
                         setValue('companyId', undefined);
                       }
-                  
-                      (document.getElementById('selectedCustomerId') as HTMLInputElement).value = id;
                     }
                   }}
-                  
-                  defaultValue=""
-                >
-                  <option value="">-- New / Manual --</option>
-                  {customers.map(c => {
-                    const comp = companies.find(co => co.id === c.companyId);
-                    const companyLabel = comp ? comp.name : 'Individual';
-                    return (
-                      <option key={c.id} value={c.id}>
-                        {c.name} ({c.phone}) - {companyLabel}
-                      </option>
-                    );
-                  })}
-                </select>
-                <input id="selectedCustomerId" name="customerId" type="hidden" />
+                  minSearchLength={3}
+                  debounceMs={300}
+                />
+                <input id="selectedCustomerId" name="customerId" type="hidden" value={selectedCustomerId} />
               </div>
               <Input
                 {...register('customerName')}
@@ -450,8 +641,8 @@ export const CreateBooking: React.FC = () => {
               />
             </div>
 
-             {/* Advance Reason */}
-             <div>
+            {/* Advance Reason */}
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Advance Reason / Notes
               </label>
@@ -545,7 +736,7 @@ export const CreateBookingCityModal: React.FC<{
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Add City" size="sm">
       <div className="space-y-4">
-        <Input label="City Name" placeholder="e.g., Delhi" value={value} onChange={(e)=>setValue(e.target.value)} />
+        <Input label="City Name" placeholder="e.g., Delhi" value={value} onChange={(e) => setValue(e.target.value)} />
         {error && <p className="text-sm text-red-600">{error}</p>}
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={onClose}>Cancel</Button>
