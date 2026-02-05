@@ -254,7 +254,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
 export const CreateBooking: React.FC = () => {
   const navigate = useNavigate();
   const { addBooking, drivers, vehicles, companies, customers } = useApp();
-  console.log(vehicles);
+  // console.log(vehicles);
   const [cities, setCities] = React.useState<string[]>([]);
   const [vehicleCategories, setVehicleCategories] = React.useState<VehicleCategoryDTO[]>([]);
   React.useEffect(() => {
