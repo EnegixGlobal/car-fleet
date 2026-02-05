@@ -47,6 +47,7 @@ export const BookingDetails: React.FC = () => {
     toggleDutySlipSubmittedToCompany,
     drivers,
     vehicles,
+    companies,
   } = useApp();
   const { hasRole } = useAuth();
 
@@ -543,8 +544,8 @@ export const BookingDetails: React.FC = () => {
                     <p className="font-medium capitalize">
                       {booking.bookingSource.replace("-", " ")}
                     </p>
-                    <p className="text-sm text-gray-500 capitalize">
-                      {booking.journeyType}
+                    <p className="text-sm text-gray-500">
+                      {companies.find((c) => c.id === booking.companyId)?.name || "No Company"}
                     </p>
                   </div>
                 </div>
