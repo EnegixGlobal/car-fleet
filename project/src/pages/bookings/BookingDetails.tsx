@@ -85,7 +85,7 @@ export const BookingDetails: React.FC = () => {
         updateBooking(id, fresh as unknown as Partial<Booking>);
         // Load driver payments
         const dp = await bookingAPI.listDriverPayments(id);
-        console.log('Driver payments received from backend:', dp);
+        // console.log('Driver payments received from backend:', dp);
         setDriverPayments(dp as DriverPayment[]);
       } catch (error) {
         console.error('Failed to load driver payments:', error);
@@ -1524,7 +1524,7 @@ export const BookingDetails: React.FC = () => {
       >
         <form
           onSubmit={handleDriverPaySubmit(async (data) => {
-            console.log('Form submitted with data:', data);
+            // console.log('Form submitted with data:', data);
             if (!booking || !driver) return;
             try {
               if (editingDriverPayment) {
@@ -1631,7 +1631,7 @@ export const BookingDetails: React.FC = () => {
                 } else {
                   payload.amount = parseFloat(data.amount || "0");
                 }
-                console.log('Final payload before API call:', payload);
+                // console.log('Final payload before API call:', payload);
                 const created = await bookingAPI.addDriverPayment(
                   booking.id,
                   payload
