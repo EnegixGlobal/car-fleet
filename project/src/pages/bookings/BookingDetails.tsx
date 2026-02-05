@@ -545,7 +545,7 @@ export const BookingDetails: React.FC = () => {
                       {booking.bookingSource.replace("-", " ")}
                     </p>
                     <p className="text-sm text-gray-500">
-                      {companies.find((c) => c.id === booking.companyId)?.name || "No Company"}
+                      {companies.find((c) => c.id === booking.companyId)?.name}
                     </p>
                   </div>
                 </div>
